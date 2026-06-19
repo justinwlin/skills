@@ -6,39 +6,61 @@ user-invocable: true
 
 # Runpod Flash
 
-Write code locally, test with `flash run` (dev server at localhost:8888), and flash automatically provisions and deploys to remote GPUs/CPUs in the cloud. `Endpoint` handles everything.
+Write code locally, test with `flash dev` (dev server at localhost:8888), and flash automatically provisions and deploys to remote GPUs/CPUs in the cloud. `Endpoint` handles everything.
 
 ## Setup
 
 ```bash
-pip install runpod-flash                 # requires Python >=3.10
+# install the CLI — requires Python 3.10-3.13
+uv tool install runpod-flash
+pip install runpod-flash
 
 # auth option 1: browser-based login (saves token locally)
 flash login
+flash login --no-open                    # headless: print URL instead of opening a browser
+flash login --timeout 300                # max seconds to wait for browser auth (default 600)
 
 # auth option 2: API key via environment variable
 export RUNPOD_API_KEY=your_key
 
-flash init my-project                    # scaffold a new project in ./my-project
+flash init my-project                    # scaffold a new project in ./my-project (writes AGENTS.md + CLAUDE.md)
+flash init .                             # scaffold in the current directory
+flash init my-project --force            # overwrite existing files (-f)
+flash update                             # update the CLI to the latest version
+flash update --version 1.16.0            # pin a specific version (-V also works)
 ```
+
+`flash init` writes `AGENTS.md` (+ a `CLAUDE.md` symlink). To add them to an existing project: `python -c "from runpod_flash.rules import install_agent_files; from pathlib import Path; install_agent_files(Path.cwd())"`.
 
 ## CLI
 
+`flash dev` is the canonical dev-server command (`flash run` still works as a hidden alias).
+
 ```bash
-flash run                                # start local dev server at localhost:8888
-flash run --auto-provision               # same, but pre-provision endpoints (no cold start)
-flash build                              # package artifact for deployment (500MB limit)
-flash build --exclude pkg1,pkg2          # exclude packages from build
+flash dev                                # start local dev server at localhost:8888
+flash dev --auto-provision               # same, but pre-provision endpoints (no cold start)
+flash dev --port 9000 --host 0.0.0.0     # custom port/host; --reload/--no-reload toggles autoreload
 flash deploy                             # build + deploy (auto-selects env if only one)
 flash deploy --env staging               # build + deploy to "staging" environment
 flash deploy --app my-app --env prod     # deploy a specific app to an environment
 flash deploy --preview                   # build + launch local preview in Docker
+flash deploy --no-deps --python-version 3.11  # build flags below also apply to deploy
 flash env list                           # list deployment environments
 flash env create staging                 # create "staging" environment
 flash env get staging                    # show environment details + resources
 flash env delete staging                 # delete environment + tear down resources
+flash app list                           # list flash apps in your account
+flash app create my-app                  # create a flash app
+flash app get my-app                     # show an app's environments + builds
+flash app delete my-app                  # delete an app and all its resources
 flash undeploy list                      # list all active endpoints
 flash undeploy my-endpoint               # remove a specific endpoint
+flash undeploy --all                     # remove all endpoints (--interactive/-i to pick, --force/-f to skip prompts)
+flash undeploy --cleanup-stale           # remove endpoints whose code no longer exists locally
+
+# `flash build` is build-only (no deploy) — mainly for debugging the artifact; `flash deploy` builds for you
+flash build                              # package the artifact without deploying (1500MB limit; torch auto-excluded)
+flash build --no-deps                    # build flags: --no-deps, --exclude pkg1,pkg2, --output name.tar.gz, --python-version 3.11
 ```
 
 ## Endpoint: Three Modes
@@ -125,8 +147,7 @@ print(job.output)
 Endpoint(
     name="endpoint-name",                  # required (unless id= set)
     id=None,                               # connect to existing endpoint
-    gpu=GpuGroup.AMPERE_80,               # single GPU type (default: ANY)
-    gpu=[GpuGroup.ADA_24, GpuGroup.AMPERE_80],  # or list for auto-select by supply
+    gpu=GpuGroup.AMPERE_80,               # GpuGroup tier, GpuType model, or list of either (default: GpuGroup.ANY)
     cpu=CpuInstanceType.CPU5C_4_8,        # CPU type (mutually exclusive with gpu)
     workers=5,                             # shorthand for (0, 5)
     workers=(1, 5),                        # explicit (min, max)
@@ -137,7 +158,7 @@ Endpoint(
     image="org/image:tag",                 # pre-built Docker image (client mode)
     env={"KEY": "val"},                    # environment variables
     volume=NetworkVolume(...),             # persistent storage
-    datacenter=DataCenter.US_CA_2,         # pin to datacenter(s) (default: all)
+    datacenter=DataCenter.US_CA_2,         # DataCenter | list | str (default: None)
     gpu_count=1,                           # GPUs per worker
     template=PodTemplate(containerDiskInGb=100),
     flashboot=True,                        # fast cold starts
@@ -150,12 +171,13 @@ Endpoint(
 ```
 
 - `gpu=` and `cpu=` are mutually exclusive
+- `gpu=` accepts a `GpuGroup`, a `GpuType`, or a list of either (see GPU Types below)
 - `workers=5` means `(0, 5)`. Default is `(0, 1)`
 - `max_concurrency` -- requests handled concurrently per worker (default 1). Raise it for I/O-bound LB routes so one worker serves multiple requests
 - `idle_timeout` default is **60 seconds**
 - `flashboot=True` (default) -- enables fast cold starts via snapshot restore
 - `gpu_count` -- GPUs per worker (default 1), use >1 for multi-GPU models
-- `datacenter` -- a `DataCenter` enum, list, or string; defaults to all for GPU endpoints
+- `datacenter` -- a `DataCenter` enum, list, or string; defaults to `None` (unset)
 - `scaler_type` -- defaults to `QUEUE_DELAY` for queue-based endpoints and `REQUEST_COUNT` for load-balanced endpoints; pass `ServerlessScalerType.QUEUE_DELAY` or `REQUEST_COUNT` to override
 - `DataCenter`, `CudaVersion`, and `ServerlessScalerType` are importable from `runpod_flash`
 
@@ -187,7 +209,11 @@ print(job.id, job.output, job.error, job.done)
 await job.cancel()
 ```
 
-## GPU Types (GpuGroup)
+## GPU Types
+
+`gpu=` accepts a `GpuGroup` (a supply pool by VRAM tier), a `GpuType` (a pinned GPU model), or a list of either. `GpuGroup` picks the cheapest available GPU within a tier; `GpuType` pins a specific model.
+
+### GpuGroup (supply pool)
 
 | Enum | GPU | VRAM |
 |------|-----|------|
@@ -203,6 +229,19 @@ await job.cancel()
 | `HOPPER_141` | H200 | 141GB |
 | `BLACKWELL_96` | RTX PRO 6000 Blackwell | 96GB |
 | `BLACKWELL_180` | B200 | 180GB |
+
+### GpuType (pinned model)
+
+Pin an exact GPU model. Members include `NVIDIA_GEFORCE_RTX_4090`, `NVIDIA_GEFORCE_RTX_5090`, `NVIDIA_RTX_6000_ADA_GENERATION`, `NVIDIA_H100_80GB_HBM3`, `NVIDIA_A100_80GB_PCIe`, `NVIDIA_A100_SXM4_80GB`, `NVIDIA_H200`, `NVIDIA_B200`, the `NVIDIA_RTX_PRO_6000_BLACKWELL_*` editions (Server / Workstation / Max-Q), and the Ampere/Ada RTX A-series models (`NVIDIA_RTX_A4000`, `A4500`, `A5000`, `A6000`, `NVIDIA_L4`, `NVIDIA_A40`, `NVIDIA_GEFORCE_RTX_3090`, `NVIDIA_RTX_4000_ADA_GENERATION`, `NVIDIA_RTX_2000_ADA_GENERATION`).
+
+```python
+from runpod_flash import Endpoint, GpuType
+
+@Endpoint(name="pinned", gpu=GpuType.NVIDIA_GEFORCE_RTX_4090, dependencies=["torch"])
+async def report_gpu(data):
+    import torch
+    return {"gpu": torch.cuda.get_device_name(0)}
+```
 
 ## CPU Types (CpuInstanceType)
 
