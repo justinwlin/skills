@@ -3,6 +3,18 @@
 Pick storage based on whether data must survive a stop, be shared across
 machines, and where your compute runs. There are three layers.
 
+## Default: prefer a network volume
+
+**Unless the user says otherwise, put anything worth keeping on a network
+volume** — models, datasets, checkpoints, environments, caches. It survives pod
+stop/terminate and serverless scale-to-zero, is reusable across pods and
+endpoints, and means expensive downloads happen once. Create it (and the volume's
+data center) *before* the compute, then place the compute in that same DC.
+
+Use the faster, non-persistent layers deliberately, not by default: container /
+ephemeral disk for throwaway scratch, and pod volume disk when a single pod's data
+doesn't need to outlive it. When in doubt, choose the network volume.
+
 ## The three layers
 
 ### Container / ephemeral disk

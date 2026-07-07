@@ -1,12 +1,12 @@
 ---
 name: runpod-usage
 description: >-
-  Conceptual reference for how Runpod works — pods vs serverless, workers and cold
-  starts, building a Runpod-compatible Docker image, container disk vs network
-  volumes and S3 access, GPU/VRAM selection and pricing, pod/endpoint URLs, and
-  common gotchas. Use to answer "how does X work", "which GPU", or "how do I build
-  a container for Runpod". Not a tool — for actions use runpodctl, runpod-mcp, or
-  flash.
+  How Runpod works and how to work it — pods vs serverless, GPU/VRAM selection,
+  storage, building a container, networking, plus the agentic pod development loop
+  (provision → ssh-exec → set up → poll readiness) and on-pod install hygiene
+  (uv/apt). Use to answer "how does X work", "which GPU", "how do I build a
+  container", or "how do I stand up a workload on a pod". Guidance, not a tool —
+  execute with runpodctl, runpod-mcp, or flash.
 metadata:
   author: runpod
   version: "1.0"
@@ -24,6 +24,8 @@ Read the one reference file that matches the question:
 | Question | Read |
 | --- | --- |
 | Pods vs serverless, workers, cold starts, FlashBoot, queue vs load-balanced | `reference/concepts.md` |
+| **Stand up / iterate a workload on a pod** — the end-to-end agentic loop | `reference/pod-workflows.md` |
+| **Install software on a pod** — package hygiene, `uv`, non-interactive, caching | `reference/on-pod-setup.md` |
 | Build a Docker image Runpod can run (handler contract, Dockerfile, `--platform=linux/amd64`) | `reference/docker.md` |
 | Where data lives — container disk vs network volume, model caching, S3 access | `reference/storage.md` |
 | Which GPU / how much VRAM / cost & availability / data centers | `reference/gpu-selection.md` |

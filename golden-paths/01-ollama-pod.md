@@ -87,24 +87,24 @@ to run this agentically is what's thin.
 | --- | --- | --- |
 | Auth | ✅ router + runpodctl `doctor` / MCP OAuth | — |
 | Pod: pytorch template + GPU | ✅ `pod create --template-id --gpu-id` | — |
-| Expose port + env at creation | ✅ `--ports` / `--env` (and MCP `ports`/`env`) | Skills don't call out "**ports/env must be set at create**" or show it for a service pod |
+| Expose port + env at creation | ✅ `--ports` / `--env`; now documented in `pod-workflows.md` + runpodctl | — |
 | SSH enabled | ✅ `--ssh` defaults on; `ssh info` | — |
-| **Agent runs commands on the pod** | ⚠️ `ssh info` gives details | **No skill shows the non-interactive `ssh <host> '…'` exec loop** an agent needs (the tutorial assumes a human web terminal) |
-| Install hygiene / **uv** | ❌ nowhere | **Add on-pod setup guidance** (apt for system, uv for Python, pin versions) |
-| Poll readiness + escalate | ❌ nowhere | **Add a "wait until the service answers / when to ask the human" pattern** |
-| Storage: default network volume | ⚠️ `storage.md` explains options | **No "default to a network volume" policy**, and no `OLLAMA_MODELS`-on-volume pattern |
+| **Agent runs commands on the pod** | ✅ `pod-workflows.md` — non-interactive `ssh <host> '…'` exec loop | — |
+| Install hygiene / **uv** | ✅ `on-pod-setup.md` (apt for system, uv for Python, pin, background+log) | — |
+| Poll readiness + escalate | ✅ `pod-workflows.md` steps 6 + 8 | — |
+| Storage: default network volume | ✅ `storage.md` "Default: prefer a network volume" | — |
 | Return access URL | ✅ `networking.md` has the proxy format | — |
 
-### Proposed skill changes to close the gaps
+### Skill changes (done)
 
-1. **`runpod-usage/reference/pod-workflows.md`** (new) — the agentic on-pod loop:
-   create with ports/env, `ssh info` → non-interactive `ssh 'cmd'`, poll a health
-   URL until ready, escalate on manual steps, tear down.
-2. **`runpod-usage/reference/on-pod-setup.md`** (new) — install hygiene: prefer
-   `uv` for Python, `apt` for system packages, pin versions, run long installs in
-   the background and log to the volume.
-3. **`storage.md`** — add the default: **prefer a network volume** for anything
-   worth keeping (models, datasets, checkpoints); use pod/container disk only for
-   scratch or when the user asks.
-4. **Router / runpodctl** — note that service pods need their port + env declared
-   at creation, and point at the pod-workflows reference.
+Closed by generic capabilities, not Ollama-specific recipes:
+
+1. **`runpod-usage/reference/pod-workflows.md`** — the reusable pod development
+   loop (provision → ssh-exec → set up → run → poll readiness → escalate → deliver).
+2. **`runpod-usage/reference/on-pod-setup.md`** — install hygiene (uv/apt, pin,
+   non-interactive, cache on volume, background + log).
+3. **`storage.md`** — "prefer a network volume by default" policy.
+4. **Router + runpodctl** — service pods declare port + env at creation; both
+   point at the pod development loop.
+
+Remaining to reach **covered**: a live end-to-end run on a fundable account.

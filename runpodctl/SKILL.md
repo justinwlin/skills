@@ -75,6 +75,7 @@ Before using unfamiliar commands, inspect live help first. Do not rely on this s
 - Use serverless for request/response inference APIs and scalable workers; use pods for interactive work, notebooks, training, debugging, or long-lived sessions.
 - Use CPU pods for preprocessing, file movement, lightweight scripts, and non-CUDA work. Use GPU pods when CUDA, model inference, training, or GPU memory is required.
 - Do not pass GPU flags when creating CPU pods. Check `runpodctl pod create --help` for the current valid flag set.
+- Standing up a **service on a pod** (Ollama, ComfyUI, a dev server)? Declare its `--ports` and `--env` **at creation** (they can't be added to a running pod without a reset), then follow the pod development loop in the `runpod-usage` skill (`reference/pod-workflows.md`) — SSH-exec the install, bind to `0.0.0.0`, and poll the proxy URL until it answers.
 - For SSH, prefer `runpodctl pod get <pod-id>` or `runpodctl ssh info <pod-id>` to retrieve connection details. Do not use deprecated interactive SSH commands.
 - Network volumes are location-sensitive. Check datacenter availability before attaching volumes, and use `send` / `receive` or S3-compatible storage for migrations.
 - Clean up paid resources after tests: delete serverless endpoints, pods, and temporary volumes created for validation.

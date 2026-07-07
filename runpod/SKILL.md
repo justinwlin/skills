@@ -68,6 +68,16 @@ Capability matrix (pick the preferred lane per operation):
 Rule of thumb: **default to MCP for the easy stuff, hand off to runpodctl the
 moment an op needs a flag/feature MCP doesn't expose.**
 
+## Standing up a service on a pod
+
+For "run <service> on a pod and give me the URL" tasks (Ollama, ComfyUI, a dev
+box, a training run), follow the general **pod development loop** in
+`runpod-usage/reference/pod-workflows.md`: provision with ports + env + a network
+volume at creation, connect over SSH-exec, install with package managers
+(`on-pod-setup.md`, prefer `uv`), start bound to `0.0.0.0`, and **poll the proxy
+URL until the service actually answers** before reporting success. Execute it in
+the runpodctl lane (it exposes ports/env/ssh/volume flags).
+
 ## Multi-lane tasks
 
 Sequence is always **understand → produce artifacts → manage infra → verify**,

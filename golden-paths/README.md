@@ -10,7 +10,7 @@ not a human clicking the Console — must be able to complete them.
 
 | # | Golden path | Status |
 | --- | --- | --- |
-| 01 | [Ollama server on a pod + access URL](01-ollama-pod.md) | drafted — gaps identified |
+| 01 | [Ollama server on a pod + access URL](01-ollama-pod.md) | skills complete — live run pending |
 | 02 | [ComfyUI server on a pod + access URL](02-comfyui-pod.md) | stub |
 | 03 | [Whisper endpoint (URL → text)](03-whisper-endpoint.md) | stub |
 
