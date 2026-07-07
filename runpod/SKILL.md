@@ -68,15 +68,20 @@ Capability matrix (pick the preferred lane per operation):
 Rule of thumb: **default to MCP for the easy stuff, hand off to runpodctl the
 moment an op needs a flag/feature MCP doesn't expose.**
 
-## Standing up a service on a pod
+## Deploying a workload (the golden loop)
 
-For "run <service> on a pod and give me the URL" tasks (Ollama, ComfyUI, a dev
-box, a training run), follow the general **pod development loop** in
-`runpod-usage/reference/pod-workflows.md`: provision with ports + env + a network
-volume at creation, connect over SSH-exec, install with package managers
-(`on-pod-setup.md`, prefer `uv`), start bound to `0.0.0.0`, and **poll the proxy
-URL until the service actually answers** before reporting success. Execute it in
-the runpodctl lane (it exposes ports/env/ssh/volume flags).
+For any "get <X> running on Runpod" task, follow the **development loop** in
+`runpod-usage/reference/development-loop.md`: decide pod vs serverless → **prefer a
+prebuilt template / Hub worker over building from scratch** → provision → set up
+(only if from-scratch) → **verify with a real request from outside** ("Running"/
+"ready" ≠ serving) → deliver → cost-guard + teardown. It branches to two sub-loops:
+
+- **Service you open at a URL** (Ollama, ComfyUI, dev box) → `pod-workflows.md`
+  (ports + env + volume at creation, SSH-exec install, bind `0.0.0.0`, poll the
+  proxy URL). Execute in the runpodctl lane.
+- **Request/response API that scales to zero** (Whisper, inference) →
+  `endpoint-workflows.md` (Hub worker vs flash vs custom image; invoke `/run`/
+  `/runsync`; poll job status).
 
 ## Multi-lane tasks
 

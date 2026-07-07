@@ -24,7 +24,9 @@ Read the one reference file that matches the question:
 | Question | Read |
 | --- | --- |
 | Pods vs serverless, workers, cold starts, FlashBoot, queue vs load-balanced | `reference/concepts.md` |
-| **Stand up / iterate a workload on a pod** — the end-to-end agentic loop | `reference/pod-workflows.md` |
+| **The development loop for ANY workload (start here)** — plan → prefer prebuilt → provision → verify → teardown | `reference/development-loop.md` |
+| **Stand up / iterate a workload on a pod** — the pod sub-loop | `reference/pod-workflows.md` |
+| **Deploy / iterate a serverless endpoint** — Hub vs flash vs custom, invoke + verify | `reference/endpoint-workflows.md` |
 | **Install software on a pod** — package hygiene, `uv`, non-interactive, caching | `reference/on-pod-setup.md` |
 | Build a Docker image Runpod can run (handler contract, Dockerfile, `--platform=linux/amd64`) | `reference/docker.md` |
 | Where data lives — container disk vs network volume, model caching, S3 access | `reference/storage.md` |
