@@ -75,7 +75,8 @@ Before using unfamiliar commands, inspect live help first. Do not rely on this s
 
 ## Decision Rules
 
-- Use Hub when the user wants a known deployable app or worker such as vLLM, ComfyUI, Whisper, or a Runpod-maintained repo.
+- Use Hub when the user wants a known deployable app or worker such as vLLM, ComfyUI, Whisper, or a Runpod-maintained repo. Picking a worker: prefer an actively-maintained one on a **broad, high-availability GPU pool** (don't pin a scarce large tier a small model doesn't need). If deployed workers go `ready` but jobs sit `IN_QUEUE` with `inProgress: 0`, that image is broken/mis-dispatching — switch workers, don't wait it out. Note: there's no first-class serverless worker-log command, so diagnose via `/health` worker counts.
+- Serverless endpoints scale to zero with `--workers-min 0` (the default) — no GPU billing while idle, only per request-second. This is the right cost posture for a request/response API. `serverless update` has no `--gpu-id`; to change an existing endpoint's GPU pool, `PATCH https://rest.runpod.io/v1/endpoints/<id>` with `{"gpuTypeIds":[...]}`.
 - Use templates when the user already has a template ID, wants reusable image/config defaults, or needs lower-level control than Hub.
 - Use direct pod creation with `--image` when the user has a specific Docker image and does not need a saved template.
 - Use serverless for request/response inference APIs and scalable workers; use pods for interactive work, notebooks, training, debugging, or long-lived sessions.

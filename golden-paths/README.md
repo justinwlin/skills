@@ -12,7 +12,7 @@ not a human clicking the Console — must be able to complete them.
 | --- | --- | --- |
 | 01 | [Ollama server on a pod + access URL](01-ollama-pod.md) | **covered** — live-verified 2026-07-07 |
 | 02 | [ComfyUI server on a pod + access URL](02-comfyui-pod.md) | **covered** — live-verified 2026-07-07 |
-| 03 | [Whisper endpoint (URL → text)](03-whisper-endpoint.md) | stub |
+| 03 | [Whisper endpoint (URL → text)](03-whisper-endpoint.md) | **covered** — live-verified 2026-07-07 |
 
 ## Status legend
 
