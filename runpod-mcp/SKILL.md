@@ -59,8 +59,14 @@ Structured tools, grouped by resource:
 - **Templates** — list, get, create, update, delete.
 - **Network volumes** — list, get, create, update, delete.
 - **Container registry auth** — list, get, create, delete.
-- **Catalog** — list/get GPU types, CPU types, data centers.
-- **Billing** — scoped usage/cost breakdowns.
+- **Catalog** — list/get GPU types, list/get CPU types, list/get data centers.
+- **Tags** — list, get, create, update, delete; attach/detach to resources.
+- **Billing** — scoped usage/cost breakdowns (`get-billing`).
+
+> Delete tools (`delete-template`, `delete-pod`, …) can return `isError: true` with
+> "Unexpected end of JSON input" **even on success** — the Runpod REST API returns
+> 204 No Content. Don't treat it as failure; confirm with a follow-up `get-`/`list-`
+> (a deleted resource then 404s).
 
 ## Use MCP vs runpodctl
 

@@ -51,6 +51,15 @@ the `SKILL.md` body small (a decision table + the 80% patterns) and push long
 tables / deep explanations into `reference/*.md` that the body links to and the
 agent opens only when needed.
 
+## Golden paths & evals
+
+- `golden-paths/` holds worked end-to-end reference tasks + a gap analysis each.
+  They have **no `SKILL.md`**, so skills.sh never loads them as skills — they are
+  acceptance scenarios/documentation. 01–03 are live-verified; later ones may be
+  specs awaiting a run (status noted in each file).
+- Each skill's `evals/*.eval.md` are regression scenarios (Prompt / Expected
+  behavior / Assertions). Add one when you add or change routing/behavior.
+
 ## Conventions
 
 - **Spelling:** "Runpod" (capital R). The CLI command is `runpodctl` (lowercase).

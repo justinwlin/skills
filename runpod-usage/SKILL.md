@@ -23,6 +23,7 @@ Read the one reference file that matches the question:
 
 | Question | Read |
 | --- | --- |
+| First-run setup / auth — get + set `RUNPOD_API_KEY`, SSH, companion creds | `reference/getting-started.md` |
 | Pods vs serverless, workers, cold starts, FlashBoot, queue vs load-balanced | `reference/concepts.md` |
 | **The development loop for ANY workload (start here)** — plan → prefer prebuilt → provision → verify → teardown | `reference/development-loop.md` |
 | **Stand up / iterate a workload on a pod** — the pod sub-loop | `reference/pod-workflows.md` |

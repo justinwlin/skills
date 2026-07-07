@@ -106,6 +106,26 @@ symptom → cause → fix. See `docker.md` and `storage.md` for the full mechani
 - **Fix:** reduce batch size / context length, or pick a larger-VRAM GPU. For
   vLLM, lower `GPU_MEMORY_UTILIZATION` and/or `MAX_MODEL_LEN`.
 
+## Serverless worker "ready" but jobs never run
+
+- **Symptom:** the endpoint has `ready` workers but jobs sit `IN_QUEUE` with
+  `inProgress: 0` and never complete.
+- **Cause:** a broken/mis-dispatching worker image, or workers `throttled` on a
+  scarce GPU pool the model doesn't need.
+- **Fix:** switch to a different (maintained) Hub worker on a **broad, high-
+  availability GPU pool** — don't wait it out. Diagnose via the endpoint `/health`
+  worker counts (there's no first-class serverless worker-log command in runpodctl/
+  REST v1; the MCP server does expose `stream-pod-logs`/worker log streaming).
+
+## Delete returns an error but succeeded
+
+- **Symptom:** an MCP `delete-*` (or a DELETE call) returns `isError: true` /
+  "Unexpected end of JSON input".
+- **Cause:** the Runpod REST API returns **204 No Content**; there's no JSON body
+  to parse.
+- **Fix:** treat it as success; confirm with a follow-up `get-`/`list-` (the
+  resource should 404 / be absent).
+
 ## Handler swallowing errors
 
 - **Symptom:** jobs report success but return nothing useful; failures are

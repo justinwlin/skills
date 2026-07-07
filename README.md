@@ -29,6 +29,17 @@ lane below. If you already know the lane, go straight to it.
 CRUD. Prefer `runpod-mcp` when its tools are connected in your session; use
 `runpodctl` for the terminal, Hub, file transfer, SSH, or `doctor`.
 
+## The development loop
+
+Any "get X running on Runpod" task follows one loop (in `runpod-usage`): **decide
+pod vs serverless → prefer a prebuilt template/Hub worker over from-scratch →
+provision → verify with a real request ("Running" ≠ "ready") → deliver → cost-guard
++ teardown.** See [`runpod-usage/reference/development-loop.md`](runpod-usage/reference/development-loop.md).
+
+The [`golden-paths/`](golden-paths/) folder holds worked, end-to-end reference
+tasks (Ollama, ComfyUI, Whisper, …) — acceptance scenarios, not installed skills
+(they have no `SKILL.md`, so agents don't load them).
+
 ## Setup
 
 Everything unifies on a single **`RUNPOD_API_KEY`**
