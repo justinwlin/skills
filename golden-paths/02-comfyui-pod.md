@@ -60,6 +60,49 @@ ComfyUI's default graph references, so the UI is usable on first open: tweak the
 prompt → **Queue Prompt**. To verify programmatically: POST the default graph to
 `/prompt`, poll `/history/<id>`, fetch `/view?filename=<out>&type=output`.
 
+## Prebuilt image / official template (faster) — live-verified 2026-07-07
+
+Instead of installing ComfyUI onto a PyTorch template, deploy Runpod's **official
+prebuilt ComfyUI image** — ComfyUI + deps + custom nodes are baked in and it
+**auto-starts** on boot. No SSH, no `pip install`, no `python main.py` needed.
+
+```bash
+runpodctl template search comfyui        # discovery
+# Official (isRunpod:true): "ComfyUI - CUDA 12.8"  id cw3nka7d08  image runpod/comfyui:cuda12.8
+#   (CUDA 13 / Blackwell / RTX 5090 → use "ComfyUI - CUDA 13" id 2lv7ev3wfp)
+
+runpodctl pod create --name comfyui-prebuilt \
+  --template-id cw3nka7d08 \
+  --gpu-id "NVIDIA GeForce RTX 4090" --data-center-ids <dc-with-4090-and-volume> \
+  --ports "8188/http,8080/http,8888/http,22/tcp" \
+  --network-volume-id <volume-id> --volume-mount-path /workspace \
+  --ssh --terminate-after <iso8601 a few hours out>
+
+# ComfyUI auto-starts — just poll the proxy (NO install/run step)
+until curl -sf https://<pod-id>-8188.proxy.runpod.net/system_stats; do sleep 10; done
+```
+
+Facts (verified on pod `7ydkt5vs4fst25`, RTX 4090, $0.69/hr):
+
+- **Template:** `ComfyUI - CUDA 12.8`, id `cw3nka7d08`, image `runpod/comfyui:cuda12.8`,
+  `isRunpod: true` (Runpod-maintained; source: `github.com/runpod-workers/comfyui-base`).
+- **Ports baked into the template:** `8188` ComfyUI, `8080` FileBrowser
+  (admin / adminadmin12), `8888` JupyterLab (`JUPYTER_PASSWORD`), `22` SSH.
+- **Auto-starts:** yes — `main.py --listen 0.0.0.0 --port 8188 --enable-cors-header`
+  already running (bind + CORS handled for you). Ships ComfyUI 0.26.2, torch 2.10.0+cu128.
+- **Boot time:** ~4 min of proxy `502`s (it copies ComfyUI to `/workspace` on first
+  boot — onto a network volume this is the slow part; readiness log line is
+  `[ComfyUI-Manager] All startup tasks have been completed.`). Install path:
+  `/workspace/runpod-slim/ComfyUI`; args file `/workspace/runpod-slim/comfyui_args.txt`.
+- **No model ships** — `/models/checkpoints` is empty on boot (a gap vs "usable on
+  first open"). Add the SD1.5 checkpoint into
+  `/workspace/runpod-slim/ComfyUI/models/checkpoints/` (same file the default graph
+  references); ComfyUI rescans on the next `/object_info` request, no restart needed.
+- **Effort vs from-scratch:** fewer steps — creation + poll only; skip the entire
+  `git clone` + `pip install --break-system-packages` + `setsid … python main.py`
+  block and the PEP 668 / detach gotchas. Trade-off: larger image (150 GB container
+  disk) and the ~4-min first-boot copy. Adding a checkpoint is the only SSH step.
+
 ## Runpod gotchas this path must respect
 
 - **PEP 668 / template torch (gap A).** The current PyTorch template is
