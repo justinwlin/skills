@@ -42,16 +42,22 @@ Ensure `~/.local/bin` is on your `PATH` (add `export PATH="$HOME/.local/bin:$PAT
 ## Quick start
 
 ```bash
-runpodctl doctor                    # First time setup (API key + SSH)
+export RUNPOD_API_KEY=your_key      # Non-interactive auth (agents) — runpodctl reads this
+runpodctl doctor                    # Interactive first-time setup (API key + SSH) — for humans
 runpodctl --help                    # See current top-level commands
 runpodctl pod create --help         # Inspect exact current flags before creating
-runpodctl gpu list                  # See available GPUs
+runpodctl gpu list                  # See available GPU types
+runpodctl datacenter list           # GPU availability per data center (use to co-locate GPU + volume)
 runpodctl hub search vllm           # Find a hub repo
 runpodctl serverless create --hub-id <id> --name "my-vllm"  # Deploy from hub
 runpodctl template search pytorch   # Find a template
 runpodctl pod create --template-id runpod-torch-v21 --gpu-id "NVIDIA GeForce RTX 4090"  # Create from template
 runpodctl pod list                  # List your pods
 ```
+
+> Auth: an agent should `export RUNPOD_API_KEY=...` (non-interactive). `runpodctl
+> doctor` is interactive (prompts) and also sets up SSH keys — good for a human's
+> first run, not for scripted use.
 
 API key: https://runpod.io/console/user/settings
 
@@ -78,7 +84,7 @@ Before using unfamiliar commands, inspect live help first. Do not rely on this s
 - Standing up a **service on a pod** (Ollama, ComfyUI, a dev server)? Declare its `--ports` and `--env` **at creation** (they can't be added to a running pod without a reset), then follow the pod development loop in the `runpod-usage` skill (`reference/pod-workflows.md`) — SSH-exec the install, bind to `0.0.0.0`, and poll the proxy URL until it answers.
 - For SSH, prefer `runpodctl pod get <pod-id>` or `runpodctl ssh info <pod-id>` to retrieve connection details. Do not use deprecated interactive SSH commands.
 - Network volumes are location-sensitive. Check datacenter availability before attaching volumes, and use `send` / `receive` or S3-compatible storage for migrations.
-- Clean up paid resources after tests: delete serverless endpoints, pods, and temporary volumes created for validation.
+- Clean up paid resources after tests: delete serverless endpoints, pods, and temporary volumes created for validation. As a cost guard on creation use `--terminate-after` (deletes the pod); `--stop-after` only *stops* it, so disk/volume keep billing. To delete an attached network volume, remove the pod first.
 
 ## Commands
 

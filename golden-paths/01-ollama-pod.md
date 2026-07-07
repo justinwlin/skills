@@ -30,31 +30,39 @@ non-interactive SSH channel. (MCP could create the pod, but see gaps below.)
 # 0. Auth (once)
 runpodctl doctor
 
-# 1. Persistent model storage (default): a network volume in a DC with the GPU
-runpodctl network-volume create --name ollama-models --size 50 --data-center-id <dc>
-#   → note the volume id + its data center
+# 0. Auth (non-interactive): runpodctl reads RUNPOD_API_KEY
+export RUNPOD_API_KEY=your_key
 
-# 2. Create the pod: pytorch template, GPU, port + env set AT creation, volume attached
+# 1. Persistent model storage (default): a network volume in a DC that has the GPU
+runpodctl datacenter list                  # per-DC GPU availability → pick a DC
+runpodctl network-volume create --name ollama-models --size 30 --data-center-id <dc>
+#   → note the volume id (it lives in <dc>; the pod must go in the same <dc>)
+
+# 2. Create the pod: pytorch template, GPU, ports + env set AT creation, volume attached
 runpodctl template search pytorch          # find the official PyTorch template id
 runpodctl pod create \
   --name ollama \
   --template-id <runpod-pytorch-template-id> \
-  --gpu-id "NVIDIA A40" \
-  --ports "11434/http" \
+  --gpu-id "<cheap available gpu>" \
+  --ports "11434/http,22/tcp" \
   --env '{"OLLAMA_HOST":"0.0.0.0","OLLAMA_MODELS":"/workspace/ollama"}' \
   --network-volume-id <volume-id> \
   --volume-mount-path /workspace \
-  --stop-after 2026-01-01T00:00:00Z      # always set a cleanup guard
+  --terminate-after <iso8601 a few hours out>   # cost guard: TERMINATES (not --stop-after)
 
 # 3. Wait for the pod, then get the SSH connection
 runpodctl pod get <pod-id>                 # poll until running
 runpodctl ssh info <pod-id>                # non-interactive ssh command + key
 
-# 4. Install + start Ollama over SSH (non-interactive, single command)
-ssh <pod-ssh> 'apt update && apt install -y lshw zstd && \
+# 4. Install + start Ollama over SSH.
+#    NOTE: --env vars land in PID 1, NOT the ssh shell — pass them explicitly on
+#    the serve command, or ollama binds to localhost and the proxy 502s.
+ssh <pod-ssh> 'set -e; DEBIAN_FRONTEND=noninteractive apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y lshw zstd curl && \
   curl -fsSL https://ollama.com/install.sh | sh && \
-  (ollama serve > /workspace/ollama.log 2>&1 &) && \
-  sleep 3 && ollama pull llama3'
+  (env OLLAMA_HOST=0.0.0.0 OLLAMA_MODELS=/workspace/ollama ollama serve \
+     > /workspace/ollama.log 2>&1 &) && \
+  sleep 3 && ollama pull llama3.2:1b'      # tiny model for a fast readiness check
 
 # 5. Poll readiness from OUTSIDE (proves the proxy + bind + port all work)
 until curl -sf https://<pod-id>-11434.proxy.runpod.net/api/tags; do sleep 5; done
@@ -68,7 +76,12 @@ echo "Ollama: https://<pod-id>-11434.proxy.runpod.net  (POST /api/generate)"
 - **Ports are set at creation.** You cannot add an exposed HTTP port to a running
   pod without a reset — declare `11434/http` up front.
 - **Bind to `0.0.0.0`.** Ollama defaults to `127.0.0.1`; without
-  `OLLAMA_HOST=0.0.0.0` the proxy returns 502. (Env var, set at creation.)
+  `OLLAMA_HOST=0.0.0.0` the proxy returns 502.
+- **`--env` doesn't reach the SSH shell.** Creation env vars land in PID 1, not
+  SSH login shells — so `OLLAMA_HOST` is *empty* when you `ssh … 'ollama serve'`,
+  and it binds to localhost anyway. Pass it explicitly on the command:
+  `env OLLAMA_HOST=0.0.0.0 … ollama serve`. (Verified live — this is the one step
+  that would fail if you followed the naive version.)
 - **Proxy is HTTPS + Cloudflare 100s cap.** Fine for the API; a very long single
   generation can hit the cap — prefer streaming or short prompts to verify.
 - **Model storage.** Default models live in container disk and vanish on stop.
@@ -107,4 +120,11 @@ Closed by generic capabilities, not Ollama-specific recipes:
 4. **Router + runpodctl** — service pods declare port + env at creation; both
    point at the pod development loop.
 
-Remaining to reach **covered**: a live end-to-end run on a fundable account.
+### Status: COVERED — live-verified 2026-07-07
+
+Ran end to end on a real account: network volume → pod (RTX 4090, PyTorch
+template, port 11434 + env at creation) → SSH install → `ollama serve` (with env
+passed explicitly) → `ollama pull llama3.2:1b` onto the volume → external poll of
+`/api/tags` (200) → `/api/generate` returned text. The run's findings (env over
+SSH, `--terminate-after` vs `--stop-after`, `datacenter list` for GPU/DC, `uv`,
+non-interactive auth) are folded into the flow above and the skill references.

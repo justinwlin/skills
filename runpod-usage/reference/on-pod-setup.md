@@ -29,6 +29,9 @@ An agent can't answer prompts. Always:
 - Pass `-y` / `--yes`; set `DEBIAN_FRONTEND=noninteractive` for apt.
 - Provide required config via env vars or flags, not TTY prompts.
 - Avoid commands that open a pager or editor.
+- **Pod `--env` vars are not in your SSH shell** (they go to PID 1). When you
+  launch a service or script over SSH that needs them, pass them explicitly:
+  `ssh <host> 'env VAR=val <command>'`. See `pod-workflows.md` step 5.
 
 ## Pin versions
 

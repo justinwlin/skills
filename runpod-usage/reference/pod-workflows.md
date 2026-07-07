@@ -22,16 +22,21 @@ Resolve the choices before creating anything (see `concepts.md`, `gpu-selection.
 
 Create the pod with everything the service needs baked in — **ports and env
 cannot be added to a running pod** without a reset, so set them now. Enable SSH
-(the agent's control channel) and a teardown guard.
+(the agent's control channel) and a **terminate** guard for cost safety.
 
 ```bash
 runpodctl pod create \
   --name <name> --template-id <official-template> --gpu-id "<gpu>" \
-  --ports "<port>/http" \                 # every port the service exposes
-  --env '{"KEY":"VALUE"}' \               # config the service reads at start
+  --ports "<port>/http,22/tcp" \          # every port the service exposes (+22 for ssh)
+  --env '{"KEY":"VALUE"}' \               # goes to PID 1 — NOT the ssh shell (see step 5)
   --network-volume-id <id> --volume-mount-path /workspace \
-  --stop-after <iso8601>                  # always set a cleanup guard
+  --terminate-after <iso8601>             # cost guard: TERMINATES the pod
 ```
+
+`--terminate-after` deletes the pod at that time; `--stop-after` only *stops* it
+(you keep paying for disk/volume), so use `--terminate-after` as the real guard.
+Find a data center that has both your GPU and (for co-location) your volume with
+`runpodctl datacenter list` — its output includes per-DC GPU availability.
 
 (MCP's `create-pod` also sets `ports`/`env`; use runpodctl when you need a
 template, CPU pod, or multi-GPU list — see the router.)
@@ -62,11 +67,21 @@ volume).
 ## 5. Run the service
 
 Start it **bound to `0.0.0.0`** (not localhost, or the proxy can't reach it) on
-the exposed port, in the background, logging to the volume:
+the exposed port, in the background, logging to the volume.
+
+> **Gotcha — creation env vars are NOT in your SSH shell.** The `--env` vars from
+> step 2 are injected into the pod's **main process (PID 1)**, not into SSH login
+> shells. A service you launch over SSH will see them **empty** — so a service
+> that reads `OLLAMA_HOST`/`HOST`/`PORT` from the environment silently binds to
+> localhost and the proxy 502s. **Pass the env explicitly** when you launch:
 
 ```bash
-ssh <host> '(<service-command> > /workspace/<svc>.log 2>&1 &)'
+ssh <host> 'env HOST_VAR=0.0.0.0 OTHER=val \
+  <service-command> > /workspace/<svc>.log 2>&1 &'
 ```
+
+(Or source them first: `set -a; . /proc/1/environ ...` is fragile — prefer passing
+what the service needs explicitly.)
 
 ## 6. Verify readiness — not "Running"
 

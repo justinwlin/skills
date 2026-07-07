@@ -76,6 +76,11 @@ usually beats two 40 GB cards for a model that fits.
 
 ## Step 5: availability and multi-GPU selection
 
+Note: the CLI (`runpodctl gpu list`) does **not** report `$/hr`, so an agent can't
+read "cheapest" from it — pick the **smallest tier that fits** the workload (lower
+tiers are generally cheaper) and check per-region stock with `runpodctl datacenter
+list` before creating. Prices are on the Runpod pricing page / Console.
+
 GPU supply fluctuates by tier and region. To avoid throttling:
 
 - **List multiple GPU types / pools in priority order.** If the first choice is
