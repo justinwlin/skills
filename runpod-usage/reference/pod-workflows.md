@@ -75,13 +75,17 @@ the exposed port, in the background, logging to the volume.
 > that reads `OLLAMA_HOST`/`HOST`/`PORT` from the environment silently binds to
 > localhost and the proxy 502s. **Pass the env explicitly** when you launch:
 
+A long-lived server must be **fully detached**, or SSH sends SIGHUP on channel
+close and kills it. Use `setsid` + `< /dev/null`, return immediately, and poll in
+a *separate* call (don't `sleep` in the same invocation — it can drop the channel):
+
 ```bash
-ssh <host> 'env HOST_VAR=0.0.0.0 OTHER=val \
-  <service-command> > /workspace/<svc>.log 2>&1 &'
+ssh <host> 'setsid bash -c "env HOST_VAR=0.0.0.0 OTHER=val <service-command>" \
+  > /workspace/<svc>.log 2>&1 < /dev/null &'
 ```
 
-(Or source them first: `set -a; . /proc/1/environ ...` is fragile — prefer passing
-what the service needs explicitly.)
+(Two things at once: pass env explicitly because `--env` isn't in this shell, and
+detach with `setsid`/`</dev/null` so it survives disconnect.)
 
 ## 6. Verify readiness — not "Running"
 
@@ -92,8 +96,10 @@ check from **outside**, through the proxy URL, until it succeeds:
 until curl -sf https://<pod-id>-<port>.proxy.runpod.net/<health-path>; do sleep 5; done
 ```
 
-Only report success once this passes. If it never does, read the service log on
-the volume to diagnose.
+Expect the **proxy itself to return 502 for the first ~30–60s** while the service
+finishes importing / CUDA-initializing — that's normal warm-up, not failure, so
+keep polling (with a timeout). Only report success once it passes. If it never
+does, read the service log on the volume to diagnose.
 
 ## 7. Iterate
 
