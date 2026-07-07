@@ -70,6 +70,11 @@ Structured tools, grouped by resource:
   browse/deploy, **`send`/`receive`** file transfer, **SSH** key management,
   **`doctor`** setup, **model cache** — or any shell-only agent, or when the user
   wants a reproducible command.
+- **Hand pod creation to runpodctl** when it needs a capability MCP's create-pod
+  lacks: **from a template** (`--template-id`), a **CPU** pod (`--compute-type
+  cpu`), or a **multi-GPU priority list**. MCP's v2 create-pod requires an image
+  and takes a single GPU type — fine for a simple one-image/one-GPU pod, but defer
+  the richer cases even when MCP is connected.
 - **Not this lane:** writing/deploying your own Python (→ flash); downloading
   models or building/pushing images (→ companion-clis).
 

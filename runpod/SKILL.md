@@ -45,14 +45,28 @@ the right lane and hands off. Read the matching skill's `SKILL.md` next.
 
 ### runpod-mcp vs runpodctl (the overlap)
 
-Both drive the same Runpod REST API for the same infra CRUD, so pick by
-environment, not by feature:
+Both drive the same Runpod API, so they overlap on infra CRUD. Choose by
+**capability first, environment second**:
 
-- **Prefer runpod-mcp** when its tools are already connected — structured params,
-  typed errors, no shell quoting.
-- **Use runpodctl** when there is no MCP connection, when the user wants a
-  copy-pasteable command/script, or for CLI-only capabilities (Hub, file
-  transfer, SSH, `doctor`, models).
+- **MCP wins on convenience** for simple, structured operations — reads and basic
+  CRUD — when its tools are connected (typed params, no shell quoting).
+- **runpodctl takes over when an operation needs a capability MCP lacks** — even
+  if MCP is connected — and is the only option for a shell-only agent or when the
+  user wants a reproducible command.
+
+Capability matrix (pick the preferred lane per operation):
+
+| Operation | Preferred lane | Why |
+| --- | --- | --- |
+| List/get anything; start/stop/restart/delete a pod; simple CRUD on endpoints, templates, volumes, registries; catalog; billing | **runpod-mcp** if connected, else runpodctl | Simple structured ops — MCP is typed and convenient |
+| Create a **simple** pod (one image + one GPU) | **runpod-mcp** if connected, else runpodctl | Both handle it |
+| Create a pod **from a template**, a **CPU** pod, or with a **multi-GPU priority list** | **runpodctl** | MCP's v2 create-pod has no `templateId`, requires an image, and narrows to a single GPU type |
+| Deploy from the **Hub** | **runpodctl** | MCP has no Hub tools |
+| **File transfer** (`send`/`receive`), **SSH** keys/info, **`doctor`** setup, **model** cache | **runpodctl** | MCP has no tool for these |
+| Invoke a serverless job (`run`/`runsync`/status/stream) | **runpod-mcp** if connected, else runpodctl | MCP has first-class job tools |
+
+Rule of thumb: **default to MCP for the easy stuff, hand off to runpodctl the
+moment an op needs a flag/feature MCP doesn't expose.**
 
 ## Multi-lane tasks
 
