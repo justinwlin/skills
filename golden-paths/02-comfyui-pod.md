@@ -95,9 +95,16 @@ Facts (verified on pod `7ydkt5vs4fst25`, RTX 4090, $0.69/hr):
   `[ComfyUI-Manager] All startup tasks have been completed.`). Install path:
   `/workspace/runpod-slim/ComfyUI`; args file `/workspace/runpod-slim/comfyui_args.txt`.
 - **No model ships** — `/models/checkpoints` is empty on boot (a gap vs "usable on
-  first open"). Add the SD1.5 checkpoint into
-  `/workspace/runpod-slim/ComfyUI/models/checkpoints/` (same file the default graph
-  references); ComfyUI rescans on the next `/object_info` request, no restart needed.
+  first open"). Two ways to add one:
+  - **From the UI (easiest for a human):** the prebuilt image bundles
+    **ComfyUI-Manager**, so when a loaded workflow references a missing model the UI
+    shows a **blue "download" / missing-models button** that fetches the model
+    **straight into the correct Runpod folder** — no need to find the URL or the
+    right `models/` subdirectory yourself.
+  - **Programmatically (for an agent):** drop the file into
+    `/workspace/runpod-slim/ComfyUI/models/checkpoints/` over SSH (same filename the
+    default graph references); ComfyUI rescans on the next `/object_info` request, no
+    restart needed. Agents use this path since they don't click UI buttons.
 - **Effort vs from-scratch:** fewer steps — creation + poll only; skip the entire
   `git clone` + `pip install --break-system-packages` + `setsid … python main.py`
   block and the PEP 668 / detach gotchas. Trade-off: larger image (150 GB container
