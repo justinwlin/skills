@@ -1,7 +1,16 @@
 ---
 name: flash
-description: runpod-flash SDK and CLI for deploying AI workloads on Runpod serverless GPUs/CPUs.
+description: >-
+  runpod-flash — code-first serverless: write Python locally, run it on remote
+  Runpod GPUs/CPUs with `flash dev` (hot-reload + live worker logs), then
+  `flash deploy`. Use for @Endpoint/@remote functions, resource config, and
+  debugging flash deployments. For CLI-only infra management use runpodctl or
+  runpod-mcp.
 user-invocable: true
+metadata:
+  author: runpod
+  version: "1.0"
+license: Apache-2.0
 ---
 
 # Runpod Flash
