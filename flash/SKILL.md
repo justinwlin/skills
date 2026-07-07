@@ -382,6 +382,15 @@ results = await asyncio.gather(compute(a), compute(b), compute(c))
 7. **Client vs decorator** -- `image=`/`id=` = client. Otherwise = decorator.
 8. **Auto GPU switching requires workers >= 5** -- pass a list of GPU types (e.g. `gpu=[GpuGroup.ADA_24, GpuGroup.AMPERE_80]`) and set `workers=5` or higher. The platform only auto-switches GPU types based on supply when max workers is at least 5.
 9. **`runsync` timeout is 60s** -- cold starts can exceed 60s. Use `ep.runsync(data, timeout=120)` for first requests or use `ep.run()` + `job.wait()` instead.
+10. **Raw HTTP callers nest under the parameter name** -- when something other than the flash client hits the deployed endpoint (`curl .../runsync`, another service), the wire body is `{"input": {"<handler_param_name>": <value>}}`, not a plain `{"input": {...}}`. A handler `def transcribe(input_data: dict)` expects `{"input":{"input_data":{...}}}`. Name the parameter `input` if you want the plain Runpod contract. (The flash client's `ep.runsync(x)` hides this — it's only a gotcha for external callers.)
+11. **Load a model once per worker (not per call)** -- reconciles with #1: create a module-level cache *inside* the body so it works under both `flash dev` and `deploy`:
+    ```python
+    global _MODEL
+    try: _MODEL
+    except NameError: _MODEL = load_model()   # runs once per worker, reused across calls
+    ```
+12. **Native CUDA libs go in `dependencies=[]` too** -- e.g. CTranslate2/faster-whisper needs `nvidia-cublas-cu12` + `nvidia-cudnn-cu12` or it silently falls back to CPU. Add them alongside the Python package.
+13. **Teardown a deployed app with `flash app delete <app>`** -- `flash undeploy list` may show "no endpoints" for an app that is deployed and serving; `flash app delete` (or `runpodctl serverless delete <id>`) reliably removes it.
 
 ## Resources
 

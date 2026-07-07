@@ -93,6 +93,62 @@ Note: first request cold-starts (image pull + model load) ~20–90 s, which can 
 `runsync`'s 60 s sync window — use `/run` + poll `/status/<id>` for the first call,
 then `runsync` once warm. Bound any poll loop.
 
+## Variant B — build from scratch with flash (also live-verified 2026-07-07)
+
+When you want a **custom/lighter** worker than any Hub image (own model size, own
+I/O schema, pre/post-processing), build it code-first with **flash**. Verified end
+to end: a hand-written faster-whisper handler, `flash deploy`, correct transcript.
+
+```python
+# whisper_worker.py  — deps + GPU declared in the decorator (NOT pyproject.toml)
+from runpod_flash import Endpoint, GpuGroup
+
+@Endpoint(
+    name="whisper-flash",
+    gpu=GpuGroup.AMPERE_16,                 # whisper base needs <2GB; broad supply
+    workers=(0, 3), idle_timeout=60,        # scale-to-zero
+    dependencies=["faster-whisper",
+                  "nvidia-cublas-cu12", "nvidia-cudnn-cu12"],  # CTranslate2 GPU libs
+)
+async def transcribe(input_data: dict) -> dict:
+    import base64, tempfile, urllib.request
+    from faster_whisper import WhisperModel
+    global _MODEL                            # load once per worker (see flash gotcha 11)
+    try: _MODEL
+    except NameError: _MODEL = WhisperModel("base", device="cuda", compute_type="float16")
+    # download input_data["audio_url"] (or decode audio_base64) -> temp file -> transcribe
+```
+
+```bash
+uv tool install runpod-flash          # or pip install runpod-flash (py 3.10-3.13)
+export RUNPOD_API_KEY=...
+flash init ~/whisper-flash            # scaffold (outside your git repos)
+flash dev                             # iterate on a real remote GPU (hot-reload) — cheap, catches the payload shape
+flash deploy                          # ship → returns an endpoint id
+```
+
+Call it (note the payload nests under the **parameter name** `input_data` — flash
+gotcha 10; name the param `input` to get the plain contract):
+
+```bash
+curl -s https://api.runpod.ai/v2/<endpoint-id>/runsync \
+  -H "Authorization: Bearer $RUNPOD_API_KEY" -H "Content-Type: application/json" \
+  -d '{"input":{"input_data":{"audio_url":"https://github.com/runpod-workers/sample-inputs/raw/main/audio/gettysburg.wav"}}}'
+```
+
+Verified: cold ~55–75s (image pull + model download), **warm <1s**; returns
+`{text, language, ...}` with the correct Gettysburg transcript. Teardown:
+`flash app delete whisper-flash` (or `runpodctl serverless delete <id>`).
+
+### Hub vs flash — which to pick
+
+- **Hub (Variant A):** ~2 min, zero code, but you take the worker's model/schema.
+  Best for a **heavy, prebuilt, known** model where a maintained worker exists.
+- **flash (Variant B):** ~15 min, you own the handler, model size, I/O, and get a
+  **lighter/cheaper** image + `flash dev` iteration. Best for **custom/small**
+  workloads or when no good Hub worker fits. For a big prebuilt model with a solid
+  Hub worker, flash is just re-implementing it — stay on the Hub.
+
 ## Cost + cleanup
 
 `--workers-min 0` ⇒ scale-to-zero: no GPU billing while idle (you pay only per
