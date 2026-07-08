@@ -57,6 +57,12 @@ agent opens only when needed.
   They have **no `SKILL.md`**, so skills.sh never loads them as skills — they are
   acceptance scenarios/documentation. 01–03 are live-verified; later ones may be
   specs awaiting a run (status noted in each file).
+- **Layout rule:** a single-approach path is one file `NN-name.md`; a path with
+  **multiple variants** is a folder `NN-name/` with a `README.md` (goal, "which
+  variant?", shared schema/gotchas/cost) + one `variant-*.md` per approach. Every
+  doc follows the same section template (Goal · Status · Lane(s) → When to use →
+  Prerequisites → Walkthrough → Verify → Gotchas → Cost & cleanup → skill gaps).
+  Keep the `golden-paths/README.md` table in sync when adding/splitting a path.
 - Each skill's `evals/*.eval.md` are regression scenarios (Prompt / Expected
   behavior / Assertions). Add one when you add or change routing/behavior.
 

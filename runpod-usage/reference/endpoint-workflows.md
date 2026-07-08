@@ -69,5 +69,5 @@ Give the user the endpoint id + a copy-paste `curl` and the input schema (how to
 pass a URL and/or base64). Scale-to-zero means it's safe to leave; delete with
 `runpodctl serverless delete <id>` (or `flash app delete <app>`).
 
-See `golden-paths/03-whisper-endpoint.md` for a fully worked example of both the
-Hub and flash variants.
+See `golden-paths/03-whisper-endpoint/` for a fully worked example of both the
+Hub and flash variants (a README plus one file per variant).
