@@ -12,12 +12,12 @@ nodes, pinned versions, or a lighter image (see the
 > **official prebuilt ComfyUI image** — ComfyUI + deps + custom nodes are baked in
 > and it **auto-starts** on boot. No SSH, no `pip install`, no `python main.py`.
 > Per the development loop, this is the "prefer a prebuilt" path
-> (`../../runpod-usage/reference/development-loop.md`).
+> (`../../skills/runpod-usage/reference/development-loop.md`).
 
 ## Prerequisites
 
 - `runpodctl` installed and `export RUNPOD_API_KEY=your_key`
-  ([`../../runpodctl/SKILL.md`](../../skills/runpodctl/SKILL.md)).
+  ([`../../skills/runpodctl/SKILL.md`](../../skills/runpodctl/SKILL.md)).
 - A GPU with ≥16 GB VRAM (RTX 4090 ideal) in the **same DC** as your network
   volume.
 - Enough container disk for the image (**~150 GB** — larger than a PyTorch base).

@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # "RunPod" (camel) always wrong; "RUNPOD" wrong unless part of an ENV_VAR token.
 CAMEL = re.compile(r"RunPod")
-UPPER = re.compile(r"RUNPOD(?![_A-Z0-9])")
+UPPER = re.compile(r"RUNPOD(?![_A-Z0-9.])")
 
 bad = []
 for md in ROOT.rglob("*.md"):

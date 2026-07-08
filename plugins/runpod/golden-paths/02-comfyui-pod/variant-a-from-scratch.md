@@ -10,12 +10,12 @@ you just want ComfyUI up fast and reliably, use
 
 > Full control, slower first setup: you install ComfyUI onto an official PyTorch
 > template yourself. This is the from-scratch branch of the pod development loop
-> (`../../runpod-usage/reference/pod-workflows.md`).
+> (`../../skills/runpod-usage/reference/pod-workflows.md`).
 
 ## Prerequisites
 
 - `runpodctl` installed and `export RUNPOD_API_KEY=your_key` (non-interactive
-  auth — see [`../../runpodctl/SKILL.md`](../../skills/runpodctl/SKILL.md)).
+  auth — see [`../../skills/runpodctl/SKILL.md`](../../skills/runpodctl/SKILL.md)).
 - A GPU with ≥16 GB VRAM available (RTX 4090 ideal) in a data center that also has
   your network volume.
 - SSH usable by the agent (`runpodctl ssh info` returns the connection details).
@@ -94,7 +94,7 @@ graph to `/prompt`, poll `/history/<id>`, then fetch the image at
   Plain `pip install` errors — use `--break-system-packages` (as above). A bare
   `uv venv` won't inherit torch and would reinstall multi-GB torch or lose CUDA;
   install into the existing interpreter (or `uv venv --system-site-packages`). See
-  [`../../runpod-usage/reference/on-pod-setup.md`](../../skills/runpod-usage/reference/on-pod-setup.md).
+  [`../../skills/runpod-usage/reference/on-pod-setup.md`](../../skills/runpod-usage/reference/on-pod-setup.md).
 - **Detach or it dies.** A plain `&` is killed by SIGHUP when the SSH channel
   closes. `setsid … < /dev/null &` (new session + detached stdin) is what keeps
   ComfyUI alive after you disconnect. Do the readiness wait in a **separate** SSH

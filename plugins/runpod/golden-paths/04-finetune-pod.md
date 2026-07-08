@@ -6,10 +6,10 @@ launches a **detached, logged** LoRA/QLoRA run, monitors it to completion, and
 leaves the trained adapter on the volume — then tears the pod down.
 
 This is a **batch job on a pod**, not a server. It follows the pod development
-loop (`../runpod-usage/reference/pod-workflows.md`) but the shape differs at both
+loop (`../skills/runpod-usage/reference/pod-workflows.md`) but the shape differs at both
 ends: there is **no port / proxy URL** to expose, and **success is "training
 finished + checkpoint on the volume"**, verified by tailing the log — not by
-polling an HTTP endpoint. See `../runpod-usage/reference/development-loop.md` for
+polling an HTTP endpoint. See `../skills/runpod-usage/reference/development-loop.md` for
 the shared spine.
 
 Grounded in: `docs/instant-clusters/axolotl.mdx` (single-node adaptation of the

@@ -9,11 +9,11 @@ Remote-SSH config), and confirms an interactive session works with storage that
 Unlike a *service* pod (01/02) there's no HTTP proxy URL to poll and no
 `0.0.0.0`-bound server — **success is a live interactive shell/IDE session on a
 box whose `/workspace` survives a stop/restart**. It follows the pod development
-loop (`../runpod-usage/reference/pod-workflows.md`), stopping at "connect".
+loop (`../skills/runpod-usage/reference/pod-workflows.md`), stopping at "connect".
 
 Grounded in: `docs/pods/configuration/connect-to-ide.mdx`,
 `docs/pods/configuration/use-ssh.mdx`, `runpodctl/SKILL.md`, `storage.md`,
-`networking.md`, `../runpod-usage/reference/development-loop.md`.
+`networking.md`, `../skills/runpod-usage/reference/development-loop.md`.
 
 ## Acceptance criteria
 

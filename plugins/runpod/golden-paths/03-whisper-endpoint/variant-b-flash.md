@@ -8,7 +8,7 @@ handler, iterate on a real GPU with `flash dev`, then `flash deploy`. For a heav
 prebuilt model with a solid Hub worker, prefer
 [Variant A — Hub](variant-a-hub.md) (flash would just be re-implementing it).
 Shared schema, gotchas, and cost notes live in the [folder README](README.md); the
-flash skill is at [../../flash/SKILL.md](../../skills/flash/SKILL.md).
+flash skill is at [../../skills/flash/SKILL.md](../../skills/flash/SKILL.md).
 
 ## Prerequisites
 
@@ -46,7 +46,7 @@ flash skill is at [../../flash/SKILL.md](../../skills/flash/SKILL.md).
        # download input_data["audio_url"] (or decode audio_base64) -> temp file -> transcribe
    ```
    Two flash rules are load-bearing here (both from
-   [../../flash/SKILL.md](../../skills/flash/SKILL.md)): **native CUDA libs go in
+   [../../skills/flash/SKILL.md](../../skills/flash/SKILL.md)): **native CUDA libs go in
    `dependencies=[]` too** — `nvidia-cublas-cu12` + `nvidia-cudnn-cu12`, or
    CTranslate2/faster-whisper silently falls back to CPU (gotcha 12); and **load the
    model once per worker** via the module-level `global _MODEL` cache *inside* the

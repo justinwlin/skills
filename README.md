@@ -24,8 +24,10 @@ Native install with auto-update:
 /plugin install runpod@runpod
 ```
 
-Installing the plugin also wires up the **hosted Runpod MCP server** (via the
-bundled [`.mcp.json`](plugins/runpod/.mcp.json)) — no separate MCP setup.
+In Claude Code, installing the plugin also wires up the **hosted Runpod MCP
+server** (via the bundled [`.mcp.json`](plugins/runpod/.mcp.json)) — no separate
+MCP setup. (Codex/Gemini may need the MCP server added separately; see
+[`runpod-mcp`](plugins/runpod/skills/runpod-mcp/SKILL.md).)
 
 ### With skills.sh (Cursor, Copilot, Windsurf, Cline, + 17 others)
 
@@ -71,7 +73,7 @@ CLIs use their own credentials.
 .claude-plugin/marketplace.json   Claude Code / skills.sh marketplace manifest
 .agents/plugins/marketplace.json  Codex marketplace manifest
 plugins/runpod/                   the plugin (skills/, golden-paths/, .mcp.json, manifests)
-hooks/                            marketplace + branding validation
+hooks/                            marketplace, branding & link validation
 ```
 
 ## Contributing

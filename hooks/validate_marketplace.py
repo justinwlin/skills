@@ -51,8 +51,11 @@ def check_claude_marketplace():
         if not pdir.is_dir():
             errors.append(f"plugin '{name}': source dir not found: {pdir.relative_to(ROOT)}")
             continue
-        # per-plugin manifest
+        # per-plugin manifests (Claude Code, and Codex/Gemini if present)
         load_json(pdir / ".claude-plugin" / "plugin.json")
+        for extra in (pdir / ".codex-plugin" / "plugin.json", pdir / "gemini-extension.json"):
+            if extra.exists():
+                load_json(extra)
         # bundled MCP config, if any
         mcp = pdir / ".mcp.json"
         if mcp.exists():

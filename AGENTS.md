@@ -12,7 +12,8 @@ conceptually.
 
 Two install paths read the **same** `.claude-plugin/marketplace.json`:
 - **Plugin:** `/plugin marketplace add runpod/skills` then `/plugin install runpod@runpod`
-  (native, auto-updating; also wires the hosted MCP via `plugins/runpod/.mcp.json`).
+  (native, auto-updating; in Claude Code also wires the hosted MCP via
+  `plugins/runpod/.mcp.json` — Codex/Gemini may need it added separately).
 - **skills.sh:** `npx skills add runpod/skills` (skills.sh reads the marketplace
   manifest and installs the declared skill paths).
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Verify every relative Markdown link in the repo resolves to a real file.
+"""Verify every relative Markdown link in the repo resolves — path AND #anchor.
 
-Skips http(s)/mailto/anchor-only links; strips #anchors before checking the path.
-Run from the repo root: python3 hooks/check_links.py
+Skips http(s)/mailto links. For a link with a #fragment into a Markdown file
+(or a bare #fragment within the same file), verifies the fragment matches a
+heading, using GitHub's slug rules. Run from the repo root: python3 hooks/check_links.py
 """
 import re
 import sys
@@ -10,6 +11,27 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 LINK = re.compile(r"\]\(([^)]+)\)")
+HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
+
+
+def slug(text: str) -> str:
+    s = text.strip().lower()
+    s = re.sub(r"[^\w\s-]", "", s)  # drop punctuation except word/space/hyphen
+    s = s.replace(" ", "-")
+    return s
+
+
+def slugs_for(path: Path) -> set:
+    out = set()
+    try:
+        for line in path.read_text(errors="replace").splitlines():
+            m = HEADING.match(line)
+            if m:
+                out.add(slug(m.group(1)))
+    except OSError:
+        pass
+    return out
+
 
 bad = []
 for md in ROOT.rglob("*.md"):
@@ -19,19 +41,21 @@ for md in ROOT.rglob("*.md"):
     for line_no, line in enumerate(md.read_text(errors="replace").splitlines(), 1):
         for m in LINK.finditer(line):
             link = m.group(1).strip()
-            if link.startswith(("http://", "https://", "#", "mailto:")):
+            if link.startswith(("http://", "https://", "mailto:")):
                 continue
-            path = link.split("#", 1)[0]
-            if not path:
+            path_part, _, frag = link.partition("#")
+            target = md if path_part == "" else (d / path_part).resolve()
+            if path_part and not target.exists():
+                bad.append((md.relative_to(ROOT), line_no, link, "missing file"))
                 continue
-            target = (d / path).resolve()
-            if not target.exists():
-                bad.append((md.relative_to(ROOT), line_no, link))
+            if frag and target.suffix == ".md":
+                if slug(frag) not in slugs_for(target):
+                    bad.append((md.relative_to(ROOT), line_no, link, "missing anchor"))
 
 if bad:
-    print("link check FAILED — broken relative links:")
-    for path, ln, link in bad:
-        print(f"  - {path}:{ln}  ->  {link}")
+    print("link check FAILED:")
+    for path, ln, link, why in bad:
+        print(f"  - {path}:{ln}  ->  {link}   ({why})")
     sys.exit(1)
 
 print("link check OK")

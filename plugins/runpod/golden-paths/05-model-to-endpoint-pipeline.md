@@ -10,12 +10,12 @@ ordering rule (**artifacts before infra**) and the credential boundaries a singl
 lane never hits: an **HF token** (download), a **Docker PAT** (push), and
 **registry auth** (Runpod pulling a *private* image). Use it only when no Hub
 worker or `flash` handler fits — those are cheaper (see
-`../runpod-usage/reference/endpoint-workflows.md` step 1, and golden path 03).
+`../skills/runpod-usage/reference/endpoint-workflows.md` step 1, and golden path 03).
 
 Grounded in: `companion-clis/SKILL.md` (hf / docker / registry),
 `docs/serverless/workers/handler-functions.mdx` (handler shape),
 `runpodctl/SKILL.md` (template + serverless create, registry), `storage.md`,
-`../runpod-usage/reference/development-loop.md`.
+`../skills/runpod-usage/reference/development-loop.md`.
 
 ## Acceptance criteria
 
