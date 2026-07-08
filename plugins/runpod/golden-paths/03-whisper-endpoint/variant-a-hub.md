@@ -10,7 +10,7 @@ cost notes live in the [folder README](README.md).
 ## Prerequisites
 
 - `runpodctl` installed and on `PATH` — see
-  [../../runpodctl/SKILL.md](../../runpodctl/SKILL.md).
+  [../../runpodctl/SKILL.md](../../skills/runpodctl/SKILL.md).
 - A Runpod API key exported for non-interactive use:
   ```bash
   export RUNPOD_API_KEY=...   # https://runpod.io/console/user/settings
@@ -60,7 +60,7 @@ availability. When a Hub worker's workers go `ready` but jobs sit `IN_QUEUE` wit
 `inProgress: 0`, that worker image is broken/mis-dispatching — **switch workers,
 don't wait it out.** (This is the shared "broken Hub worker" gotcha in the
 [README](README.md); the same rule is in
-[../../runpod-usage/reference/gotchas.md](../../runpod-usage/reference/gotchas.md).)
+[../../runpod-usage/reference/gotchas.md](../../skills/runpod-usage/reference/gotchas.md).)
 
 ## Verify it works
 

@@ -4,28 +4,52 @@ This file provides guidance to AI agents when working with code in this reposito
 
 ## Overview
 
-This is a **skills repository** for AI agents (Claude Code, Cursor, Copilot, etc.)
-to work with Runpod. It contains no application code — only skill definition files
-(`SKILL.md`) plus supporting reference docs. Skills teach agents how to manage GPU
-workloads across several backends and how Runpod works conceptually.
+This is a **plugin marketplace** for AI agents (Claude Code, Codex, Gemini,
+opencode, Cursor, Copilot, etc.) to work with Runpod. It contains no application
+code — only a plugin whose skills (`SKILL.md`) plus supporting reference docs teach
+agents how to manage GPU workloads across several backends and how Runpod works
+conceptually.
 
-Skills are installed by users via `npx skills add runpod/skills` (see
-[skills.sh](https://skills.sh/)).
+Two install paths read the **same** `.claude-plugin/marketplace.json`:
+- **Plugin:** `/plugin marketplace add runpod/skills` then `/plugin install runpod@runpod`
+  (native, auto-updating; also wires the hosted MCP via `plugins/runpod/.mcp.json`).
+- **skills.sh:** `npx skills add runpod/skills` (skills.sh reads the marketplace
+  manifest and installs the declared skill paths).
+
+## Repository layout
+
+```
+.claude-plugin/marketplace.json   Claude Code / skills.sh manifest (plugin + skills paths)
+.agents/plugins/marketplace.json  Codex manifest
+plugins/runpod/                   THE plugin
+  .claude-plugin/plugin.json      Claude Code plugin manifest
+  .codex-plugin/plugin.json       Codex plugin manifest
+  gemini-extension.json           Gemini manifest
+  .mcp.json                       hosted Runpod MCP server config
+  README.md  CHANGELOG.md
+  skills/                         the six skills (below)
+  golden-paths/                   worked end-to-end reference tasks (no SKILL.md)
+hooks/                            validate_marketplace / check_runpod_branding / check_links
+.github/workflows/validate.yml    runs the hooks on PRs
+```
+
+When you **add a skill**, list its path in the `skills` array of
+`.claude-plugin/marketplace.json` (that array is what skills.sh resolves).
 
 ## Architecture: a router + lanes
 
-The repository is organized as one **entrypoint** that routes to specialized
-**lanes**. `runpod/` is the router: an agent reads it first when the right lane is
-unclear, then follows its decision table into a lane's `SKILL.md`.
+The plugin's skills are organized as one **entrypoint** that routes to specialized
+**lanes**. `skills/runpod/` is the router: an agent reads it first when the right
+lane is unclear, then follows its decision table into a lane's `SKILL.md`.
 
 ```
-runpod/            router / entrypoint — decides the lane
-runpod-mcp/        manage infra via the Runpod MCP server (structured tool calls)
-runpodctl/         manage infra via the CLI (+ Hub, file transfer, SSH, doctor)
-flash/             write & deploy your own code on Runpod serverless (@remote)
-companion-clis/    prerequisite CLIs (hf, gh, docker, aws)
-runpod-usage/      conceptual knowledge ("how Runpod works") — not a tool
-  reference/*.md   detailed topics, loaded on demand
+skills/runpod/            router / entrypoint — decides the lane
+skills/runpod-mcp/        manage infra via the Runpod MCP server (structured tool calls)
+skills/runpodctl/         manage infra via the CLI (+ Hub, file transfer, SSH, doctor)
+skills/flash/             write & deploy your own code on Runpod serverless (@remote)
+skills/companion-clis/    prerequisite CLIs (hf, gh, docker, aws)
+skills/runpod-usage/      conceptual knowledge ("how Runpod works") — not a tool
+  reference/*.md          detailed topics, loaded on demand
 ```
 
 **runpod-mcp and runpodctl overlap** — both drive the same Runpod REST API for the

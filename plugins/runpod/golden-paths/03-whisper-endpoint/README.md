@@ -11,9 +11,9 @@ can jump straight to the one you want.
 
 Whisper is a request/response inference API → **serverless** (invoked via
 `/run`/`/runsync`, scales to zero between requests). See the shape decision in
-[../../runpod-usage/reference/development-loop.md](../../runpod-usage/reference/development-loop.md)
+[../../runpod-usage/reference/development-loop.md](../../skills/runpod-usage/reference/development-loop.md)
 and the serverless specialization in
-[../../runpod-usage/reference/endpoint-workflows.md](../../runpod-usage/reference/endpoint-workflows.md).
+[../../runpod-usage/reference/endpoint-workflows.md](../../skills/runpod-usage/reference/endpoint-workflows.md).
 
 The least-fragile way to stand up a *known* worker is the **Runpod Hub**, deployed
 with **runpodctl** (the router rule: "Deploy from the Hub → runpodctl; MCP has no
@@ -84,7 +84,7 @@ works).
   cold-starts (image pull + model load) — ~20–90 s on the Hub, ~55–75 s on flash —
   which can exceed `runsync`'s 60 s sync window. Use `/run` + poll `/status/<id>`
   for the first call, then `runsync` once warm. **Bound any poll loop.** More in
-  [../../runpod-usage/reference/gotchas.md](../../runpod-usage/reference/gotchas.md)
+  [../../runpod-usage/reference/gotchas.md](../../skills/runpod-usage/reference/gotchas.md)
   ("Cold starts and timeouts").
 - **Broken Hub worker: `ready` but jobs never run.** A worker showing `ready` while
   jobs sit `IN_QUEUE` with `inProgress: 0` is a broken/mis-dispatching image (or

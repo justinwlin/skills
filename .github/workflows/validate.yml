@@ -1,0 +1,21 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate marketplace manifests
+        run: python3 hooks/validate_marketplace.py
+      - name: Check Runpod branding
+        run: python3 hooks/check_runpod_branding.py
+      - name: Check Markdown links
+        run: python3 hooks/check_links.py

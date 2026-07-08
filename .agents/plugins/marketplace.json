@@ -1,0 +1,20 @@
+{
+  "name": "runpod",
+  "interface": {
+    "displayName": "Runpod"
+  },
+  "plugins": [
+    {
+      "name": "runpod",
+      "source": {
+        "source": "local",
+        "path": "./plugins/runpod"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Infrastructure"
+    }
+  ]
+}

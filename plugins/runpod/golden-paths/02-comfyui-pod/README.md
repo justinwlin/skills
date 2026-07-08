@@ -6,7 +6,7 @@ From "run ComfyUI on Runpod and give me the URL", an agent provisions a GPU pod,
 gets ComfyUI running, and returns a proxy URL where the web UI loads — with a
 checkpoint and the default text-to-image workflow usable. This is the same shape
 as `../01-ollama-pod.md`; it follows the pod development loop in
-[`../../runpod-usage/reference/pod-workflows.md`](../../runpod-usage/reference/pod-workflows.md).
+[`../../runpod-usage/reference/pod-workflows.md`](../../skills/runpod-usage/reference/pod-workflows.md).
 
 There are two ways to get there, split into their own files below.
 
@@ -22,7 +22,7 @@ There are two ways to get there, split into their own files below.
 | **Pick when** | You need something custom/lighter, or specific versions/nodes | You just want ComfyUI up reliably with the least effort — **default** |
 
 **Default recommendation: Variant B (prefer prebuilt).** Per the development loop,
-[prefer a prebuilt/known option before building from scratch](../../runpod-usage/reference/development-loop.md#2-prefer-a-prebuilt--known-option-before-building-from-scratch)
+[prefer a prebuilt/known option before building from scratch](../../skills/runpod-usage/reference/development-loop.md#2-prefer-a-prebuilt--known-option-before-building-from-scratch)
 — it auto-starts and skips the install gotchas. Reach for Variant A only when no
 prebuilt fits (custom nodes, a lighter image, or pinned versions).
 
@@ -55,24 +55,24 @@ These bite both variants (details and the fix per variant are in each file):
   Ubuntu 24.04 / py3.12 (externally-managed) with torch in the **system** Python.
   A bare `pip install` errors without `--break-system-packages`, and a fresh
   `uv venv` won't inherit torch — install into the existing interpreter. See
-  [`../../runpod-usage/reference/on-pod-setup.md`](../../runpod-usage/reference/on-pod-setup.md).
+  [`../../runpod-usage/reference/on-pod-setup.md`](../../skills/runpod-usage/reference/on-pod-setup.md).
 - **Detach the server / `setsid` (Variant A).** A plain `&` dies on SSH
   disconnect (SIGHUP). Start with `setsid … < /dev/null &`, return immediately,
   and poll in a **separate** SSH call (don't `sleep` in the same invocation).
 - **"Running" ≠ ready.** A pod showing "Running" does not mean ComfyUI serves.
   Always verify from **outside** through the proxy and expect a warm-up window of
   502s — that's normal, keep polling. See the loop's
-  [verify step](../../runpod-usage/reference/development-loop.md#6-verify-with-a-real-request--up--ready).
+  [verify step](../../skills/runpod-usage/reference/development-loop.md#6-verify-with-a-real-request--up--ready).
 - **Bind `0.0.0.0`.** localhost/`127.0.0.1` → the proxy can't reach it → 502.
   Variant B already passes `--listen 0.0.0.0`; Variant A must set it.
 - **Network-volume DC lock.** A network volume is pinned to one data center, so
   the pod must be created in that **same DC** — which narrows GPU availability.
   Confirm your GPU exists in the volume's DC first
-  ([`../../runpod-usage/reference/storage.md`](../../runpod-usage/reference/storage.md),
-  [`gotchas.md`](../../runpod-usage/reference/gotchas.md)).
+  ([`../../runpod-usage/reference/storage.md`](../../skills/runpod-usage/reference/storage.md),
+  [`gotchas.md`](../../skills/runpod-usage/reference/gotchas.md)).
 - **Ports at creation; URL is public + unauth.** Ports can't be added to a
   running pod without a reset, and the proxy URL is reachable by anyone who has it
-  ([`../../runpod-usage/reference/networking.md`](../../runpod-usage/reference/networking.md)).
+  ([`../../runpod-usage/reference/networking.md`](../../skills/runpod-usage/reference/networking.md)).
 
 ## Cost & cleanup (shared)
 

@@ -41,7 +41,7 @@ observed output) → Gotchas we hit → Cost & cleanup → Skill gaps folded bac
 ## How to use these
 
 1. **Match your task to a row** in the table (or read
-   [`../runpod-usage/reference/development-loop.md`](../runpod-usage/reference/development-loop.md)
+   [`../runpod-usage/reference/development-loop.md`](../skills/runpod-usage/reference/development-loop.md)
    first if you're unsure whether it's a pod or a serverless job).
 2. **For a multi-variant path, open the folder `README.md` first** — it tells you
    which variant to pick and holds the shared schema/gotchas/cost. Then open the
