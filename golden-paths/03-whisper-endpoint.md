@@ -21,7 +21,13 @@ Rejected:
 - **Custom image + endpoint** — most fragile (write handler → build amd64 → push →
   maybe registry auth → create endpoint). Only worth it if no good Hub worker exists.
 
-## Pick the worker (this matters — not all Hub workers work)
+## Variant A — Runpod Hub worker (recommended)
+
+The least-fragile path: deploy a maintained Hub worker with runpodctl. No handler
+code, no image build. (Prefer a from-scratch code handler you own? See
+[Variant B — flash](#variant-b--build-from-scratch-with-flash).)
+
+### Pick the worker (this matters — not all Hub workers work)
 
 `runpodctl hub search whisper --type SERVERLESS`. There is **no** official
 `runpod-workers/worker-faster_whisper` in the Hub; the dedicated transcription
@@ -38,7 +44,7 @@ only needs ~10 GB VRAM, so pinning `ADA_48_PRO` bought nothing and cost availabi
 When a Hub worker's workers go `ready` but jobs sit `IN_QUEUE` with `inProgress: 0`,
 that worker image is broken/mis-dispatching — switch workers, don't wait it out.
 
-## Deploy
+### Deploy
 
 ```bash
 export RUNPOD_API_KEY=...   # https://runpod.io/console/user/settings
@@ -51,7 +57,7 @@ runpodctl serverless create \
 Returns an endpoint id (this run: `tlftkn7v2ixdw0`). The Hub config supplies the
 GPU pool, container disk, and CUDA version automatically.
 
-## Input schema
+### Input schema
 
 `POST` body is `{"input": { ... }}`. Key fields:
 
@@ -72,7 +78,7 @@ public URL and pass it as `audio_file`, or (b) base64-encode the bytes and pass 
 string as `audio_file`. Base64 rides the job payload, so respect the limits: `/run`
 ~10 MB, `/runsync` ~20 MB. For larger files, use a URL (presigned S3/GCS works).
 
-## Verify (tested)
+### Verify (tested)
 
 ```bash
 curl -s https://api.runpod.ai/v2/<endpoint-id>/runsync \
@@ -93,11 +99,12 @@ Note: first request cold-starts (image pull + model load) ~20–90 s, which can 
 `runsync`'s 60 s sync window — use `/run` + poll `/status/<id>` for the first call,
 then `runsync` once warm. Bound any poll loop.
 
-## Variant B — build from scratch with flash (also live-verified 2026-07-07)
+## Variant B — build from scratch with flash
 
-When you want a **custom/lighter** worker than any Hub image (own model size, own
-I/O schema, pre/post-processing), build it code-first with **flash**. Verified end
-to end: a hand-written faster-whisper handler, `flash deploy`, correct transcript.
+Also live-verified 2026-07-07. When you want a **custom/lighter** worker than any
+Hub image (own model size, own I/O schema, pre/post-processing), build it code-first
+with **flash**. Verified end to end: a hand-written faster-whisper handler,
+`flash deploy`, correct transcript.
 
 ```python
 # whisper_worker.py  — deps + GPU declared in the decorator (NOT pyproject.toml)

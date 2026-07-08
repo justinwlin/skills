@@ -20,7 +20,10 @@ Same shape as `01-ollama-pod.md`; follow `runpod-usage/reference/pod-workflows.m
    ideally a generation is confirmed via the API.
 6. Returns `https://<pod-id>-8188.proxy.runpod.net`.
 
-## Ideal agentic flow (runpodctl lane)
+## Variant A — from scratch on a PyTorch template (runpodctl lane)
+
+> Full control, slower first boot. If you just want ComfyUI up fast, skip to
+> [Variant B — prebuilt official image](#variant-b--prebuilt-official-image-faster).
 
 ```bash
 export RUNPOD_API_KEY=your_key
@@ -60,7 +63,7 @@ ComfyUI's default graph references, so the UI is usable on first open: tweak the
 prompt → **Queue Prompt**. To verify programmatically: POST the default graph to
 `/prompt`, poll `/history/<id>`, fetch `/view?filename=<out>&type=output`.
 
-## Prebuilt image / official template (faster) — live-verified 2026-07-07
+## Variant B — prebuilt official image (faster)
 
 Instead of installing ComfyUI onto a PyTorch template, deploy Runpod's **official
 prebuilt ComfyUI image** — ComfyUI + deps + custom nodes are baked in and it

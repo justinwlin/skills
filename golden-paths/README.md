@@ -8,14 +8,28 @@ flow, Runpod gotchas, and a gap analysis (how far the current skills are from it
 These are agent-facing acceptance scenarios, not marketing demos. An agent —
 not a human clicking the Console — must be able to complete them.
 
-| # | Golden path | Status |
-| --- | --- | --- |
-| 01 | [Ollama server on a pod + access URL](01-ollama-pod.md) | **covered** — live-verified 2026-07-07 |
-| 02 | [ComfyUI server on a pod + access URL](02-comfyui-pod.md) | **covered** — live-verified 2026-07-07 |
-| 03 | [Whisper endpoint (URL → text)](03-whisper-endpoint.md) | **covered** — live-verified 2026-07-07 |
-| 04 | [LoRA fine-tune (training run) on a pod](04-finetune-pod.md) | **spec** (not yet live-verified) |
-| 05 | [Custom model → serverless endpoint (cross-lane pipeline)](05-model-to-endpoint-pipeline.md) | **spec** (not yet live-verified) |
-| 06 | [Interactive dev pod (SSH / VS Code + persistent /workspace)](06-dev-pod.md) | **spec** (not yet live-verified) |
+## Table of contents
+
+Some paths have **more than one way to get there** (a fast prebuilt route and a
+from-scratch route). Those variants are listed as sub-rows so you can jump straight
+to the approach you want.
+
+| # | Golden path | Kind | Approach(es) | Status |
+| --- | --- | --- | --- | --- |
+| 01 | [Ollama server on a pod + URL](01-ollama-pod.md) | pod / server | runpodctl pod + SSH | ✅ live-verified |
+| 02 | [ComfyUI server on a pod + URL](02-comfyui-pod.md) | pod / server | — | ✅ live-verified |
+| | ↳ [Variant A — from scratch](02-comfyui-pod.md#variant-a--from-scratch-on-a-pytorch-template-runpodctl-lane) | | PyTorch template + install | ✅ |
+| | ↳ [Variant B — prebuilt official image](02-comfyui-pod.md#variant-b--prebuilt-official-image-faster) | | official template (auto-starts) | ✅ (faster) |
+| 03 | [Whisper endpoint (audio → text)](03-whisper-endpoint.md) | serverless | — | ✅ live-verified |
+| | ↳ [Variant A — Runpod Hub worker](03-whisper-endpoint.md#variant-a--runpod-hub-worker-recommended) | | runpodctl + Hub (recommended) | ✅ |
+| | ↳ [Variant B — from scratch with flash](03-whisper-endpoint.md#variant-b--build-from-scratch-with-flash) | | flash code-first handler | ✅ |
+| 04 | [LoRA fine-tune (training run) on a pod](04-finetune-pod.md) | pod / batch job | runpodctl pod + volume | ⚠️ spec |
+| 05 | [Custom model → serverless endpoint](05-model-to-endpoint-pipeline.md) | cross-lane pipeline | hf → docker → runpodctl | ⚠️ spec |
+| 06 | [Interactive dev pod (SSH / VS Code)](06-dev-pod.md) | pod / interactive | runpodctl pod + volume | ⚠️ spec |
+
+> **When there are two variants, prefer the prebuilt/Hub one** (Variant B for
+> ComfyUI, Variant A for Whisper) unless you need custom code — that's the
+> development loop's "prefer prebuilt over from-scratch" rule in action.
 
 > **01–03 are live-verified** (run end to end on a real account). **04–06 are
 > specs awaiting a run** — grounded in the skills + docs, but not yet executed, so
