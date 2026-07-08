@@ -116,6 +116,13 @@ symptom → cause → fix. See `docker.md` and `storage.md` for the full mechani
   availability GPU pool** — don't wait it out. Diagnose via the endpoint `/health`
   worker counts (there's no first-class serverless worker-log command in runpodctl/
   REST v1; the MCP server does expose `stream-pod-logs`/worker log streaming).
+- **Variant — job goes `IN_PROGRESS` then times out:** a worker *picks up* the job
+  (`IN_PROGRESS`) but never returns output, and the job fails with
+  `"job timed out after 1 retries"` after ~30–50 s. The worker runtime isn't
+  returning results — same class of broken worker. Seen with flash-deployed
+  endpoints too (independent of GPU/CPU, sync/async handler, deps). Get the **worker
+  logs** (MCP `stream-*-logs` or the Console) before guessing, and try a **different
+  data center** — don't burn attempts blind.
 
 ## Delete returns an error but succeeded
 
