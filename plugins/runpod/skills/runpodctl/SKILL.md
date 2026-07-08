@@ -238,9 +238,25 @@ runpodctl ssh remove-key --fingerprint <fp>           # Remove key by fingerprin
 ### File Transfer
 
 ```bash
-runpodctl send <path>                                 # Send files (outputs code)
-runpodctl receive <code>                              # Receive files using code
+runpodctl send <path>                                 # Send file/dir — prints a one-time code
+runpodctl receive <code>                              # Receive using that code (positional, no --code flag)
 ```
+
+`send`/`receive` do encrypted, incremental, compressed transfer — don't pre-tar or
+pre-compress the source. **Agent flow (one side sends, the other receives):**
+
+1. Run `send <path>` **without** a code. The **first line of stdout is the one-time
+   code**; `send` then blocks until the receiver connects — so capture that first line
+   as it streams (background the process, tee to a log) rather than waiting for exit.
+2. On the other machine (use `runpodctl ssh` into the pod/host if needed) run
+   `receive <code>` with that exact code. Each `send` mints a **fresh** code — never
+   reuse or invent one.
+3. Both processes must exit `0`. On failure, re-run `send` and use its **new** first-line
+   code (don't retry with the old one).
+
+To push local files to a pod: get `ssh info <pod-id>`, start `send` locally (capture the
+code), then `ssh` to the pod and run `receive <code>` there. For large/library-style
+data, a network volume or the S3 API is often simpler than `send`/`receive`.
 
 ### Utilities
 
