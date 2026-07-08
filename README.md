@@ -7,6 +7,10 @@ server, `runpodctl`, and `flash`.
 This repo ships **one plugin**, [`runpod`](plugins/runpod/), that bundles a router
 plus six skills, the hosted Runpod MCP server config, and worked golden paths.
 
+**Compatibility:** installs as a native plugin in **Claude Code, Codex, Gemini,
+and opencode** (with auto-update), and as skills via **skills.sh** for Cursor,
+Copilot, Windsurf, Cline, and 17+ other agents — all from the same manifest.
+
 ## Install
 
 Pick whichever fits your agent — both read the same repo.
