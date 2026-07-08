@@ -20,9 +20,11 @@ Write code locally, iterate with `flash dev` — it runs your functions on remot
 ## Setup
 
 ```bash
-# install the CLI — requires Python 3.10-3.13
+# install the CLI — requires Python 3.10-3.13 (NOT 3.14+ yet)
 uv tool install runpod-flash
 pip install runpod-flash
+# on Python 3.14+ the install fails — pin an older interpreter for the tool:
+uv tool install --python 3.13 runpod-flash
 
 # auth option 1: browser-based login (saves token locally)
 flash login
@@ -47,6 +49,8 @@ flash update --version 1.16.0
 ```
 
 `flash init` writes `AGENTS.md` (+ a `CLAUDE.md` symlink). To add them to an existing project: `python -c "from runpod_flash.rules import install_agent_files; from pathlib import Path; install_agent_files(Path.cwd())"`.
+
+**Auth precedence:** a set `RUNPOD_API_KEY` env var **overrides** the saved `flash login` token, so an exported bad/expired key silently beats a good login — a common trap (see Gotcha #13).
 
 ## CLI
 
@@ -131,8 +135,14 @@ curl -s "$URL/main/predict" -d '{"data": {...}}'               # dispatches to t
 - **Read the real URL from the log** — flash auto-bumps the port if 8888 is in use, and
   prints `✓ flash dev  localhost:<port>` plus the route table.
 - **Routes are namespaced by file**: `main.py`'s `/predict` is served at `/main/predict`.
-- A handler typed `def predict(data: dict)` expects the arg as a top-level field — send
-  `{"data": {...}}`, not the bare object (otherwise 422).
+- **Two route shapes, two body shapes** (mismatch → `422` naming the missing field in `loc`):
+  - **Load-balanced** (`@api.post("/predict")`) → `POST /main/predict`, body is the arg
+    at top level: a handler `def predict(data: dict)` wants `{"data": {...}}` (not the bare object).
+  - **Queue-based** (bare `@Endpoint` decorator) → `POST /main/runsync` (the local dev
+    server only generates `/runsync`; production also exposes `/run`),
+    body is **double-wrapped** in `input`: a handler `def synthesize(data: dict)` wants
+    `{"input": {"data": {...}}}`. The outer `input` is the queue envelope; the inner key is
+    the handler's param name.
 - Edit a handler and save — hot-reload re-syncs the body; just re-send the request, no
   redeploy. Add `--auto-provision` to skip the first-call cold start. `kill %1` when done.
 
@@ -213,6 +223,24 @@ print(job.output)
 | `name=` only | Decorator (your code) |
 | `image=` set | Client (deploys image, then HTTP calls) |
 | `id=` set | Client (connects to existing, no provisioning) |
+
+The table above is *how* the mode is picked from params. *When* to reach for `image=`:
+
+### When to use `image=` (custom container) vs your own code
+
+Default to writing Python (decorator / routes) — it runs arbitrary code with
+`dependencies=[...]`/`system_dependencies=[...]` and needs no Dockerfile. Even large
+HuggingFace models stay in decorator mode (weights stream at runtime — see *Loading ML models*).
+Reach for `image=` **only** when you need:
+
+- **a pre-built inference server** — vLLM, TensorRT-LLM (`image="vllm/vllm-openai:latest"`, or `runpod/worker-vllm`, `runpod/worker-comfy`)
+- **system-level deps not pip-installable** — a specific CUDA/cuDNN, OS libraries
+- **models baked into the image** — to skip the runtime download entirely
+- **an existing Runpod Serverless worker** — you already have a working image
+
+Trade-off: `image=` mode **can't run arbitrary Python** (the image owns all logic) and the
+image must implement a Runpod Serverless handler. Full list + examples:
+https://docs.runpod.io/flash/custom-docker-images
 
 ## Endpoint Constructor
 
@@ -344,6 +372,70 @@ async def process(data):
 
 ## Common Patterns
 
+### Choosing a model
+
+Flash has **no model catalog** — name a HuggingFace repo id in code and it downloads to the
+worker at runtime (see *Loading ML models*). Other sources: a custom image's `MODEL_NAME` env
+(vLLM etc.), a URL, or your own weights on a NetworkVolume.
+
+- **Start with the smallest model that proves the pipeline** (`gpt2`, `stabilityai/sd-turbo`,
+  a 0.5–1B variant) — it provisions in seconds, so you validate the `@Endpoint` wiring, deps,
+  GPU, and I/O fast under `flash dev`, then change *only the id string* to the real model.
+- **Match the model to GPU VRAM** (fp16 ≈ params × 2 bytes + overhead):
+
+  | Model (fp16) | ~VRAM | `gpu=` |
+  |---|---|---|
+  | ≤3B / SD1.5 / sd-turbo | ≤8 GB | `GpuGroup.AMPERE_16` or `GpuGroup.ADA_24` |
+  | 7–8B | ~16 GB | `GpuGroup.ADA_24` or `GpuGroup.AMPERE_24` |
+  | 13B | ~28 GB | `GpuGroup.ADA_32_PRO` or `GpuGroup.AMPERE_48` |
+  | 70B | ~140 GB | `GpuGroup.HOPPER_141` / `GpuGroup.BLACKWELL_180` (or quantize) |
+
+- A ready-made hosted model with **no code** is [Runpod Public Endpoints / Hub](https://docs.runpod.io/hub) — a different product, not Flash.
+
+### Loading ML models (warm workers)
+
+Model **weights are not part of the 1.5GB build artifact** — that cap is your code + pip
+deps (torch is auto-excluded). Weights download on the worker at runtime (HuggingFace,
+etc.), so **model size is not a Flash limit**. Two things make this fast and cheap:
+
+- **Load once per worker, not per request** — use a *class* `@Endpoint`: `__init__` loads
+  the model into VRAM once when the worker starts; methods handle requests and reuse it.
+- **Persist the cache on a NetworkVolume** so a cold worker reuses downloaded weights
+  instead of re-pulling them every cold start.
+
+```python
+from runpod_flash import Endpoint, GpuType, DataCenter, NetworkVolume
+
+vol = NetworkVolume(name="model-cache", size=100, datacenter=DataCenter.US_GA_2)
+
+@Endpoint(
+    name="sd",
+    gpu=GpuType.NVIDIA_GEFORCE_RTX_5090,
+    workers=(0, 3),
+    idle_timeout=300,                                # keep workers warm between calls
+    datacenter=DataCenter.US_GA_2,
+    volume=vol,
+    env={"HF_HUB_CACHE": "/runpod-volume/models"},   # cache weights on the volume
+    dependencies=["torch", "diffusers", "transformers", "accelerate"],
+)
+class SD:
+    def __init__(self):                              # runs ONCE per worker
+        import torch
+        from diffusers import StableDiffusionPipeline
+        self.pipe = StableDiffusionPipeline.from_pretrained(
+            "runwayml/stable-diffusion-v1-5", torch_dtype=torch.float16
+        ).to("cuda")
+
+    async def generate(self, prompt: str) -> dict:   # per request, reuses self.pipe
+        image = self.pipe(prompt=prompt).images[0]
+        image.save("/runpod-volume/out.png")         # /runpod-volume/ persists; elsewhere is wiped
+        return {"saved": "/runpod-volume/out.png"}
+```
+
+- **Gated** models: pass `env={"HF_TOKEN": "..."}`.
+- `workers=(1, n)` keeps one worker warm (no cold start on the first request); `(0, n)` scales to zero and cold-starts after `idle_timeout`.
+- The class form is the cleanest way to load once. In function-form `@Endpoint` the same effect needs the module-global cache trick (see Gotcha #11); the class form is preferred for real inference.
+
 ### CPU + GPU Pipeline
 
 ```python
@@ -378,23 +470,27 @@ results = await asyncio.gather(compute(a), compute(b), compute(c))
 3. **Missing dependencies** -- must list in `dependencies=[]`.
 4. **gpu/cpu are exclusive** -- pick one per Endpoint.
 5. **idle_timeout is seconds** -- default 60s, not minutes.
-6. **10MB payload limit** -- pass URLs, not large objects.
+6. **10MB payload limit** -- pass URLs, not large objects. Return binary (audio/images/files) as base64 in the JSON (`{"audio_b64": ...}`) and decode client-side; for larger outputs write to a NetworkVolume or upload to storage and return a URL.
 7. **Client vs decorator** -- `image=`/`id=` = client. Otherwise = decorator.
 8. **Auto GPU switching requires workers >= 5** -- pass a list of GPU types (e.g. `gpu=[GpuGroup.ADA_24, GpuGroup.AMPERE_80]`) and set `workers=5` or higher. The platform only auto-switches GPU types based on supply when max workers is at least 5.
 9. **`runsync` timeout is 60s** -- cold starts can exceed 60s. Use `ep.runsync(data, timeout=120)` for first requests or use `ep.run()` + `job.wait()` instead.
-10. **Raw HTTP callers nest under the parameter name** -- when something other than the flash client hits the deployed endpoint (`curl .../runsync`, another service), the wire body is `{"input": {"<handler_param_name>": <value>}}`, not a plain `{"input": {...}}`. A handler `def transcribe(input_data: dict)` expects `{"input":{"input_data":{...}}}`. Name the parameter `input` if you want the plain Runpod contract. (The flash client's `ep.runsync(x)` hides this — it's only a gotcha for external callers.)
-11. **Load a model once per worker (not per call)** -- reconciles with #1: create a module-level cache *inside* the body so it works under both `flash dev` and `deploy`:
+10. **Request body shape: QB double-wraps, LB is top-level** -- wrong shape → `422` (naming the missing field in `loc`). Load-balanced routes (`@api.post(...)`) take the handler arg at the top level: `{"data": {...}}`. Queue-based endpoints (bare `@Endpoint`, hit via `.../run` or `.../runsync`) double-wrap in the queue envelope, and the inner key is the handler's *parameter name*: a handler `def transcribe(input_data: dict)` wants `{"input": {"input_data": {...}}}`, not a plain `{"input": {...}}`. Name the parameter `input` for the plain Runpod contract. The flash client (`ep.runsync(x)`, `api.post(...)`) hides this — it's only a trap for raw HTTP/external callers. See *Autonomous Dev Loop*.
+11. **Load a model once per worker (not per call)** -- for real inference use a class `@Endpoint` whose `__init__` loads the model once per worker (see *Common Patterns → Loading ML models*). In function-form, reconcile with #1 by caching in a module global *inside* the body so it works under both `flash dev` and `deploy`:
     ```python
     global _MODEL
     try: _MODEL
     except NameError: _MODEL = load_model()   # runs once per worker, reused across calls
     ```
 12. **Native CUDA libs go in `dependencies=[]` too** -- e.g. CTranslate2/faster-whisper needs `nvidia-cublas-cu12` + `nvidia-cudnn-cu12` or it silently falls back to CPU. Add them alongside the Python package.
-13. **Teardown a deployed app with `flash app delete <app>`** -- `flash undeploy list` may show "no endpoints" for an app that is deployed and serving; `flash app delete` (or `runpodctl serverless delete <id>`) reliably removes it.
+13. **Silent 401 auth failure** -- a set `RUNPOD_API_KEY` env var overrides the `flash login` token, so a bad/expired key wins. The failure is quiet: provisioning logs `GraphQL request failed: 401`, but `flash dev` still prints its normal ready line ("failed endpoints deploy on-demand"), so it *looks* healthy. If endpoints fail to provision, check the log for a 401, then `unset RUNPOD_API_KEY` to fall back to the login token, or export a valid key. Verify a key independently: `curl -s -o /dev/null -w '%{http_code}' https://rest.runpod.io/v1/endpoints -H "Authorization: Bearer $RUNPOD_API_KEY"` (200 = good, 401 = bad).
+14. **`system_dependencies=` adds to cold start** -- apt packages (e.g. `["ffmpeg", "espeak-ng"]`) install on the worker before first use, so the initial call is slower (on top of any model download); warm calls are unaffected.
+15. **Teardown a deployed app with `flash app delete <app>`** -- `flash undeploy list` may show "no endpoints" for an app that is deployed and serving; `flash app delete` (or `runpodctl serverless delete <id>`) reliably removes it.
 
 ## Resources
 
 - Flash source: https://github.com/runpod/flash
-- Runnable examples: https://github.com/runpod/flash-examples
+- Runnable examples: https://github.com/runpod/flash-examples — clone and adapt the closest one
 - Package (PyPI): https://pypi.org/project/runpod-flash/
-- Docs: https://docs.runpod.io
+- Docs: https://docs.runpod.io/flash/overview
+  - Custom Docker images (when + how): https://docs.runpod.io/flash/custom-docker-images
+  - Storage / network volumes: https://docs.runpod.io/flash/configuration/storage
