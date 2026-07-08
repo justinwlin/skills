@@ -4,6 +4,22 @@ Before any lane can act, its credential has to resolve. Everything Runpod-side
 uses **one key**, `RUNPOD_API_KEY`; the companion CLIs use their own. Do the setup
 for the lane you're about to use, then follow the development loop.
 
+## Get the tools
+
+Install only the lane you need; full per-OS matrices + source links live in each
+lane's `SKILL.md` (linked). You don't need all of them.
+
+| Lane | Quick install | Source / docs |
+| --- | --- | --- |
+| **runpodctl** (CLI) | `curl -sSL https://cli.runpod.net \| bash` (or `brew install runpod/runpodctl/runpodctl`) | [source](https://github.com/runpod/runpodctl) · [`runpodctl/SKILL.md`](../../runpodctl/SKILL.md) |
+| **flash** (deploy your own code) | `uv tool install runpod-flash` (or `pip install runpod-flash`; Python 3.10–3.13) | [source](https://github.com/runpod/flash) · [`flash/SKILL.md`](../../flash/SKILL.md) |
+| **runpod-mcp** (hosted) | `npx @runpod/mcp-server@latest add` (guided; OAuth) | [source](https://github.com/runpod/runpod-mcp) · [`runpod-mcp/SKILL.md`](../../runpod-mcp/SKILL.md) |
+| **runpod-mcp** (local stdio) | `claude mcp add runpod -e RUNPOD_API_KEY=... -- npx -y @runpod/mcp-server` | same as above |
+| **companion CLIs** (`hf`/`gh`/`docker`/`aws`) | per-tool; see the skill | [`companion-clis/SKILL.md`](../../companion-clis/SKILL.md) |
+
+Nothing to install for the **hosted MCP** beyond configuring your client, and the
+`runpod-usage` concepts need no install. After installing, set the key below.
+
 ## The Runpod API key
 
 Get it once at **https://runpod.io/console/user/settings** → API Keys. Then make

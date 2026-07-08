@@ -271,3 +271,9 @@ https://api.runpod.ai/v2/<endpoint-id>/runsync    # Sync request
 https://api.runpod.ai/v2/<endpoint-id>/health     # Health check
 https://api.runpod.ai/v2/<endpoint-id>/status/<job-id>  # Job status
 ```
+
+## Source & docs
+
+- CLI source: https://github.com/runpod/runpodctl
+- Releases (binaries): https://github.com/runpod/runpodctl/releases
+- Docs: https://docs.runpod.io/runpodctl/overview

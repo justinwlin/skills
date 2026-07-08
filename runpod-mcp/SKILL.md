@@ -86,3 +86,10 @@ Structured tools, grouped by resource:
 
 For concepts (pods vs serverless, GPU selection, storage), read
 `../runpod-usage/`.
+
+## Source & docs
+
+- Server source: https://github.com/runpod/runpod-mcp
+- Package (npm): https://www.npmjs.com/package/@runpod/mcp-server
+- Hosted endpoint: https://mcp.getrunpod.io/
+- Docs: https://docs.runpod.io

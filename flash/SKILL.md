@@ -396,4 +396,5 @@ results = await asyncio.gather(compute(a), compute(b), compute(c))
 
 - Flash source: https://github.com/runpod/flash
 - Runnable examples: https://github.com/runpod/flash-examples
+- Package (PyPI): https://pypi.org/project/runpod-flash/
 - Docs: https://docs.runpod.io
