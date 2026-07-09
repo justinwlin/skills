@@ -40,9 +40,14 @@ prompts.
 ## SSH (only needed for pods you exec into)
 
 Pods created with `--ssh` (the runpodctl default) are reachable once you have a key
-registered:
+registered. **Register the key BEFORE creating the pod** — Runpod injects registered
+keys at boot, so one added after the pod is running won't work until a restart.
 
-- A human's easiest path: `runpodctl doctor` registers an SSH key for you.
+- Check what's registered: `runpodctl ssh list-keys`.
+- Register a key (do this first if none):
+  - Human: `runpodctl doctor` — generates + registers a key and stores the API key.
+  - Agent/scripted: `ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''` then
+    `runpodctl ssh add-key --key-file ~/.ssh/id_ed25519.pub` (or `--key "ssh-ed25519 …"`).
 - Get connection details for a specific pod: `runpodctl ssh info <pod-id>` (prints
   the ssh command + key path; does not connect).
 - Agents connect non-interactively:

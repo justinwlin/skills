@@ -24,6 +24,20 @@ Create the pod with everything the service needs baked in — **ports and env
 cannot be added to a running pod** without a reset, so set them now. Enable SSH
 (the agent's control channel) and a **terminate** guard for cost safety.
 
+> **Pre-flight — register your SSH key BEFORE creating the pod.** Runpod injects
+> your account's registered SSH keys into the pod **at boot**, so a key added
+> *after* the pod is running won't work until a restart. If you'll exec into the
+> pod (you will — it's the control channel), confirm a key is registered first:
+>
+> ```bash
+> runpodctl ssh list-keys                                   # already have one? then proceed
+> # if not — human (interactive): registers a key + stores the API key
+> runpodctl doctor
+> # or agent/scripted: make a key, then register its PUBLIC half
+> ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''
+> runpodctl ssh add-key --key-file ~/.ssh/id_ed25519.pub
+> ```
+
 ```bash
 runpodctl pod create \
   --name <name> --template-id <official-template> --gpu-id "<gpu>" \
