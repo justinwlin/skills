@@ -55,6 +55,13 @@ job; escalate only when it can't.
 The S3-compatible API writes straight to a volume with **no pod running** — cheapest
 and fastest for file data. Full setup (S3 API keys, `aws configure`, endpoints,
 path mapping) is in [companion-clis → AWS CLI](../skills/companion-clis/SKILL.md#aws-cli).
+
+> **Manual step — S3 API keys are Console-only.** They cannot be created via
+> `runpodctl` or any REST/GraphQL call — only in the Console (Settings → S3 API Keys →
+> Create). The access key is your Runpod **user id** (`user_...`), the secret is shown
+> **once** (`rps_...`). An agent must **escalate** for these if they aren't already in
+> `~/.aws/credentials` / env vars — it can't self-provision them. If S3 keys aren't
+> available, use the CPU-pod method below (no S3 keys needed).
 Each DC has its own endpoint (`https://s3api-<DC>.runpod.io/`); the **bucket name is
 the volume id**. Sync the *same source directory* to *each* volume:
 

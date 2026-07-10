@@ -327,6 +327,15 @@ Runpod uses its own S3-compatible API, not AWS. You need a Runpod user ID and S3
 - **Access key** (`AWS_ACCESS_KEY_ID`): your Runpod user ID — found in the console under Settings > S3 API Keys, in the key description (format: `user_...`)
 - **Secret key** (`AWS_SECRET_ACCESS_KEY`): an S3 API key — generate one at Settings > S3 API Keys > Create. Shown only once; save it immediately (format: `rps_...`)
 
+> **S3 API keys are Console-only — a manual step to escalate.** There is **no**
+> `runpodctl` command and **no** REST/GraphQL endpoint to create an S3 API key or read
+> the user ID; both come from the Console (Settings > S3 API Keys). An agent cannot
+> self-provision these — if S3-API access is needed and the keys aren't already in
+> `~/.aws/credentials` / env vars, **stop and ask the user to generate them** in the
+> portal. (This differs from the regular `RUNPOD_API_KEY`, which the CLI can save.)
+> Note the AWS access key must be the Runpod **user id** (`user_...`), not the
+> `RUNPOD_API_KEY`.
+
 ```bash
 # Option 1: interactive configure (writes ~/.aws/credentials and ~/.aws/config)
 # When prompted: enter user ID as access key, S3 API key as secret.
