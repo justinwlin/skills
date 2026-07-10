@@ -1,0 +1,3 @@
+# torch/CUDA come from the runpod/pytorch base image — don't reinstall them here.
+runpod
+faster-whisper

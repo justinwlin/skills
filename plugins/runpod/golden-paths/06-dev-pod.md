@@ -14,7 +14,7 @@ in EU-RO-1 with a 10 GB network volume at `/workspace`; SSH-exec returned real G
 a marker file survived a real `pod stop`→`pod start` (ephemeral `/root` was wiped, container
 hostname changed); and the VS Code Remote-SSH transport connected via a `~/.ssh/config` alias
 and the pod fetched the **exact** `vscode-server-linux-x64.tar.gz` for the local editor's commit
-(HTTP 200). The one thing not machine-checkable is the final GUI click (see [VS Code](#4-vs-code--cursor-remote-ssh-what-was-verified-headlessly)).
+(HTTP 200). The one thing not machine-checkable is the final GUI click (see [VS Code](#verify-it-works--vs-code--cursor-remote-ssh-what-was-verified-headlessly)).
 **Lane(s):** runpodctl (pod + volume) + SSH-exec. Builds on the pod-create + readiness-poll
 pattern from golden path [07](07-network-volume-handoff.md).
 
