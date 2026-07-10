@@ -420,3 +420,30 @@ aws s3 cp large-file.zip \
   --cli-read-timeout 7200 \
   s3://NETWORK_VOLUME_ID/
 ```
+
+### Optional: resumable volume transfers (community tool)
+
+`aws s3 sync` is fine for modest trees but has weak resume and struggles past ~10,000
+files — painful for large model weights or when replicating the same data to several
+volumes (see golden path [10 — multi-region HA serverless](../../golden-paths/10-multi-region-ha-serverless.md)).
+For that, the community **Runpod Network Volume Storage Tool** wraps the same S3 API
+with **resumable multipart uploads** (auto chunk sizing, MD5-verified resume),
+directory sync with excludes, an interactive file browser, a Python SDK, and a REST
+server. It's referenced in the official docs under
+[community solutions](https://docs.runpod.io/community-solutions/runpod-network-volume-storage-tool).
+
+```bash
+git clone https://github.com/justinwlin/Runpod-Network-Volume-Storage-Tool.git
+cd Runpod-Network-Volume-Storage-Tool && uv sync
+
+# Same S3 credentials as the AWS CLI above (access key = user id, secret = rps_... key)
+export RUNPOD_API_KEY=...
+export RUNPOD_S3_ACCESS_KEY=user_...
+export RUNPOD_S3_SECRET_KEY=rps_...
+
+uv run runpod-storage upload ./model-artifacts <volume-id>   # resumable — re-run to resume
+uv run runpod-storage list-volumes
+```
+
+Plain `aws s3` (above) stays the zero-dependency baseline; reach for this tool when
+resume/large-tree reliability matters.
