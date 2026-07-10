@@ -5,10 +5,13 @@ on a **pod** with axolotl, write the adapter to a **network volume**, then load 
 adapter from that same volume on a **serverless** endpoint and generate. Designed as a
 fast/cheap validation that **scales to larger models by changing three things** (model id,
 GPU, dataset) — nothing structural changes.
-**Status:** SPEC (not yet live-run). Composes two verified pieces: the network-volume
-handoff (golden path [07](07-network-volume-handoff.md), live-verified) and the axolotl
-training flow (golden path [04](04-finetune-pod.md)). Exact axolotl flags/paths are grounded
-in the docs; confirm on a real run.
+**Status:** COVERED — live-verified 2026-07-10 end to end. A pod LoRA-trained
+TinyLlama-1.1B (loss 2.07→1.68, ~5 min incl. install + download), wrote the adapter to the
+volume; a flash serverless worker then loaded base + adapter from `/runpod-volume` and
+generated. The live run used a **minimal peft + transformers `Trainer`** script (below) —
+it reuses the pod template's torch (no dependency fights) and is the fastest small-model
+path; the **axolotl** flow is documented alongside it as the richer option for scaling.
+Composes the verified network-volume handoff (golden path [07](07-network-volume-handoff.md)).
 **Lane(s):** runpodctl (pod + volume) + flash (serverless) + Runpod MCP (`stream-worker-logs`, for diagnosis)
 
 ## The loop in one picture
@@ -55,16 +58,44 @@ runpodctl pod create --name ft-train \
   --network-volume-id <vol-id> --volume-mount-path /workspace \
   --ssh --terminate-after <iso8601 a few hours out>          # no --ports: training serves nothing
 ```
-Then over SSH (see 07 for the poll-until-ready + non-interactive `ssh` pattern):
-```bash
-# install into the template's torch (PEP 668) and keep the HF cache on the volume
-pip install --break-system-packages "axolotl[flash-attn]" || pip install --break-system-packages axolotl
-export HF_HOME=/workspace/hf-cache
+Then over SSH (see 07 for the poll-until-ready + non-interactive `ssh` pattern). Two options:
 
-# grab axolotl's tiny LoRA example and point outputs at the VOLUME
+**Option A — minimal `peft` + `transformers` Trainer (what the live run used; fastest, most
+robust).** Reuses the template's torch, installs only `peft` + `datasets`, trains ~20 steps
+on a 200-row slice of `mhenrichsen/alpaca_2k_test`. Whole thing (install + download + train)
+ran in **~5 min** on one 4090:
+```bash
+export HF_HOME=/workspace/hf-cache                     # cache base model on the VOLUME (reused at serve)
+pip install --break-system-packages -q peft datasets
+python3 - <<'PY'
+import torch
+from datasets import load_dataset
+from transformers import (AutoModelForCausalLM, AutoTokenizer, TrainingArguments,
+                          Trainer, DataCollatorForLanguageModeling)
+from peft import LoraConfig, get_peft_model
+BASE="TinyLlama/TinyLlama-1.1B-Chat-v1.0"; OUT="/workspace/outputs/lora-out"
+tok=AutoTokenizer.from_pretrained(BASE); tok.pad_token=tok.eos_token
+ds=load_dataset("mhenrichsen/alpaca_2k_test", split="train[:200]")
+def f(ex): return tok([f"### Instruction:\n{i}\n\n### Response:\n{o}{tok.eos_token}"
+                       for i,o in zip(ex["instruction"],ex["output"])], truncation=True, max_length=256)
+ds=ds.map(f, batched=True, remove_columns=ds.column_names)
+m=get_peft_model(AutoModelForCausalLM.from_pretrained(BASE, torch_dtype=torch.float16),
+    LoraConfig(r=8, lora_alpha=16, target_modules=["q_proj","v_proj"], task_type="CAUSAL_LM"))
+Trainer(model=m, args=TrainingArguments(output_dir=OUT, max_steps=20, per_device_train_batch_size=2,
+    logging_steps=1, save_strategy="no", fp16=True, report_to=[]), train_dataset=ds,
+    data_collator=DataCollatorForLanguageModeling(tok, mlm=False)).train()
+m.save_pretrained(OUT); tok.save_pretrained(OUT); print("TRAIN_DONE")
+PY
+```
+Launch it detached (`setsid … </dev/null &`, log to `/workspace/train.log`) and poll the log.
+
+**Option B — axolotl (richer config-driven flow, for scaling).** Heavier install; pin the
+config's `flash_attention:false` if you skip flash-attn:
+```bash
+export HF_HOME=/workspace/hf-cache
+pip install --break-system-packages "axolotl[flash-attn]" || pip install --break-system-packages axolotl
 axolotl fetch examples
-axolotl train examples/tiny-llama/lora.yml \
-  --output_dir /workspace/outputs/lora-out            # adapter lands on the volume
+axolotl train examples/tiny-llama/lora.yml --output_dir /workspace/outputs/lora-out
 ```
 Success = the log ends with a "training complete / saving model" line and the adapter files
 exist: `ls /workspace/outputs/lora-out` shows `adapter_config.json` + `adapter_model.safetensors`.
@@ -81,38 +112,37 @@ A flash endpoint attaches the **same volume** and loads the adapter once per wor
 Mind the two things from 07: mount path is `/runpod-volume`, and the handler is called as
 `handler(**job_input)` (use `**kwargs`; empty input is rejected).
 
+This is the exact handler that ran. Note the flash rules from 07: **function** handler with a
+`global` cache loaded once per worker (only the function *body* ships to the worker, so load
+inside it, not at module level), `**kwargs`, and paths inlined (module-level constants don't
+ship):
 ```python
 # main.py
-import os
 from runpod_flash import Endpoint, GpuGroup, DataCenter, NetworkVolume
 
-vol = NetworkVolume(id="<vol-id>", datacenter=DataCenter.<DC>)   # the SAME volume
-ADAPTER = "/runpod-volume/outputs/lora-out"
-BASE = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+vol = NetworkVolume(id="<vol-id>", datacenter=DataCenter.EU_RO_1)   # the SAME volume
 
-@Endpoint(
-    name="ft-serve",
-    gpu=GpuGroup.ADA_24,                 # match to the base model's VRAM
-    workers=(0, 1),                      # scale to zero
-    datacenter=DataCenter.<DC>,
-    volume=vol,
-    env={"HF_HUB_CACHE": "/runpod-volume/hf-cache"},   # reuse the cache from training
-    dependencies=["torch", "transformers", "peft", "accelerate"],
-)
-class Serve:
-    def __init__(self):                  # runs ONCE per worker (flash gotcha: load once)
-        import torch
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-        from peft import PeftModel
-        self.tok = AutoTokenizer.from_pretrained(BASE)
-        base = AutoModelForCausalLM.from_pretrained(BASE, torch_dtype=torch.float16).to("cuda")
-        self.model = PeftModel.from_pretrained(base, ADAPTER)   # base + LoRA from the volume
-
-    async def generate(self, **kwargs) -> dict:      # **kwargs: flash spreads input as kwargs
-        prompt = kwargs.get("prompt", "Hello")
-        ids = self.tok(prompt, return_tensors="pt").to("cuda")
-        out = self.model.generate(**ids, max_new_tokens=kwargs.get("max_new_tokens", 64))
-        return {"text": self.tok.decode(out[0], skip_special_tokens=True)}
+@Endpoint(name="ft-serve", gpu=GpuGroup.ADA_24, workers=(0, 1), idle_timeout=60,
+          datacenter=DataCenter.EU_RO_1, volume=vol,
+          env={"HF_HOME": "/runpod-volume/hf-cache"},          # reuse training's base-model cache
+          dependencies=["torch", "transformers", "peft", "accelerate"])
+async def generate(**kwargs) -> dict:                          # flash spreads input as kwargs
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from peft import PeftModel
+    global _M, _T
+    try:
+        _M
+    except NameError:                                          # load once per worker
+        _T = AutoTokenizer.from_pretrained("/runpod-volume/outputs/lora-out")
+        base = AutoModelForCausalLM.from_pretrained(
+            "TinyLlama/TinyLlama-1.1B-Chat-v1.0", torch_dtype=torch.float16).to("cuda")
+        _M = PeftModel.from_pretrained(base, "/runpod-volume/outputs/lora-out").eval()
+    text = f"### Instruction:\n{kwargs.get('prompt', 'Hello')}\n\n### Response:\n"
+    ids = _T(text, return_tensors="pt").to("cuda")
+    with torch.no_grad():
+        out = _M.generate(**ids, max_new_tokens=int(kwargs.get("max_new_tokens", 64)), do_sample=False)
+    return {"output": _T.decode(out[0][ids["input_ids"].shape[1]:], skip_special_tokens=True)}
 ```
 ```bash
 RUNPOD_API_KEY=... flash deploy
@@ -126,7 +156,12 @@ curl -s https://api.runpod.ai/v2/<endpoint-id>/run -H "Authorization: Bearer $RU
   -H 'Content-Type: application/json' \
   -d '{"input":{"prompt":"Give me one tip about GPUs."}}'    # then poll /status/<job-id>
 ```
-Green when the first (cold) call returns generated `text`. The pipeline is proven; now scale.
+Verified result (2026-07-10): cold call `COMPLETED` in ~48 s queue + 9.7 s exec (fast — the
+base model was already cached on the volume from training), output:
+```json
+"output": {"output": "Sure, here's a tip for training LLMs:\n\n1. Start with small models: ..."}
+```
+Green when the first (cold) call returns generated text. The pipeline is proven; now scale.
 
 ## Scaling to a larger model (what changes — and what doesn't)
 **Changes:** `BASE` (model id in the axolotl config + the serve handler), the `--gpu-id` /
