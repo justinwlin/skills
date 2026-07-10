@@ -12,15 +12,14 @@ volumes (ha-a in **EU-RO-1**, ha-b in **EU-CZ-1**), **S3-synced identical data t
 (`aws s3 ls` byte-identical), deployed **one** endpoint attached to **both** volumes, and
 sent a 16-request burst: **16/16 `COMPLETED`, served by 3 workers across both DCs**
 (EU-RO-1 ×2, EU-CZ-1 ×1), each worker reading its **co-located** volume, and **every
-response identical** (one distinct marker + data string across all 16). The one real
-correction a live run forced: **the headless multi-volume attach is neither
-`runpodctl --network-volume-ids` nor REST `networkVolumeIds[]` — both pass bare strings
-and the API rejects them; it takes a GraphQL `saveEndpoint` with
-`networkVolumeIds: [{networkVolumeId}]` objects** (see step 4). Scope note: **Methods 2/3
-(pod-based population) were *not* re-run here** — they're already live-proven by golden
-path [07](07-network-volume-handoff.md) (a pod writing to a mounted volume). This path's
-live proof is the **S3-API sync + multi-volume attach + multi-DC verification**.
-**Lane(s):** runpodctl (volumes) + `aws`/S3 API (sync, see [companion-clis](../skills/companion-clis/SKILL.md#aws-cli)) + **GraphQL `saveEndpoint`** (attach multiple volumes — the headless path; Console also works) + optionally a CPU/GPU pod (in-DC population, per [07](07-network-volume-handoff.md))
+response identical** (one distinct marker + data string across all 16). Headless
+multi-volume attach works via **`runpodctl serverless create --network-volume-ids v1,v2`
+on runpodctl ≥ v2.4.0** (verified live) — check `runpodctl version` (see step 4).
+Scope note: **Methods 2/3 (pod-based population) were *not* re-run here** — already
+live-proven by golden path [07](07-network-volume-handoff.md) (a pod writing to a mounted
+volume). This path's live proof is the **S3-API sync + multi-volume attach + multi-DC
+verification**.
+**Lane(s):** runpodctl ≥ v2.4.0 (volumes + `serverless create --network-volume-ids`) + `aws`/S3 API (sync, see [companion-clis](../skills/companion-clis/SKILL.md#aws-cli)) + GraphQL `saveEndpoint` (fallback for old CLI / REST-only; Console also works) + optionally a CPU/GPU pod (in-DC population, per [07](07-network-volume-handoff.md))
 
 ## The problem, precisely
 
@@ -167,47 +166,48 @@ never `--image` — same two-step as golden path [05](05-model-to-endpoint-pipel
 runpodctl template create --name rp-gp10-tpl --serverless \
   --image justinrunpod/rp-gp10:v1 --container-disk-in-gb 10   # → template id p8b3v1prf1
 ```
-**The headless multi-volume attach is the one thing the docs got wrong for the CLI/REST
-layer.** Both documented "list" inputs are **broken** — they send bare strings, but the
-GraphQL layer wants `NetworkVolumeIdsInput` **objects** (`{ networkVolumeId }`):
+**Preferred: `runpodctl serverless create --network-volume-ids` (needs runpodctl ≥ v2.4.0).**
+The CLI passes the whole set in one call:
 ```bash
-# ✗ runpodctl — rejected:
 runpodctl serverless create --template-id p8b3v1prf1 --compute-type CPU \
-  --network-volume-ids d4qw56wbx9,xeb2u0ejfo ...
-#   → graphql: ... "d4qw56wbx9" at input.networkVolumeIds[0]; Expected type
-#     "NetworkVolumeIdsInput" to be an object.
-# ✗ REST POST /v1/endpoints with "networkVolumeIds": ["d4qw56wbx9","xeb2u0ejfo"] — same error.
+  --network-volume-ids d4qw56wbx9,xeb2u0ejfo \
+  --data-center-ids EU-RO-1,EU-CZ-1 --workers-min 0 --workers-max 1
 ```
-The Console flow works (**Serverless → Edit Endpoint → Advanced → Network Volumes**,
-one per DC, Save). The **headless** path that works is a two-step: create the endpoint
-with a single volume, then attach the full set via the GraphQL `saveEndpoint` mutation
-with the object form:
+✅ **Live 2026-07-10** (runpodctl built from `main`) — endpoint created, then
+`GET /v1/endpoints/<id>` confirmed `"networkVolumeIds":["iw4wmya3ov","o1gwxlxrva"]` (both
+attached). Under the hood runpodctl calls the GraphQL `saveEndpoint` mutation with the ids
+as **objects** — see the fallback below for what that looks like.
+
+> **Version requirement:** multi-volume `--network-volume-ids` needs **runpodctl ≥ v2.4.0**;
+> older versions don't support it. **Check `runpodctl version` first.** The Homebrew tap can
+> lag, so if you're behind, install ≥v2.4.0 from the
+> [GitHub releases](https://github.com/runpod/runpodctl/releases).
+
+**Fallback A — raw GraphQL `saveEndpoint`** (REST-only, or stuck on an old CLI). This is
+exactly what runpodctl does internally; `networkVolumeIds` takes **objects**, not strings:
 ```bash
-# a) create with ONE volume (REST accepts the singular field)
+# create with ONE volume first (REST accepts the singular field), then attach the set:
 curl -s -X POST https://rest.runpod.io/v1/endpoints \
   -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' \
   -d '{"templateId":"p8b3v1prf1","name":"rp-gp10-ha","computeType":"CPU",
-       "networkVolumeId":"d4qw56wbx9","dataCenterIds":["EU-RO-1","EU-CZ-1"],
-       "workersMin":0,"workersMax":4}'          # → endpoint id koh9bjdv1v98im
-
-# b) attach BOTH via GraphQL saveEndpoint (objects, not strings).
-#    NOTE the User-Agent header — api.runpod.io returns 403/1010 (Cloudflare) without a browser-ish UA.
+       "networkVolumeId":"d4qw56wbx9","dataCenterIds":["EU-RO-1","EU-CZ-1"],"workersMin":0,"workersMax":4}'
+# → endpoint id; then (NOTE the User-Agent — api.runpod.io returns 403/1010 without a browser-ish UA):
 curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
   -H 'Content-Type: application/json' -H 'User-Agent: Mozilla/5.0' \
   -d '{"query":"mutation($input:EndpointInput!){saveEndpoint(input:$input){id name}}",
-       "variables":{"input":{"id":"koh9bjdv1v98im","name":"rp-gp10-ha","templateId":"p8b3v1prf1",
+       "variables":{"input":{"id":"<endpoint-id>","name":"rp-gp10-ha","templateId":"p8b3v1prf1",
          "dataCenterIds":["EU-RO-1","EU-CZ-1"],
          "networkVolumeIds":[{"networkVolumeId":"d4qw56wbx9"},{"networkVolumeId":"xeb2u0ejfo"}],
          "workersMin":0,"workersMax":4,"scalerType":"QUEUE_DELAY","scalerValue":1,"idleTimeout":10}}}'
 ```
-✅ `GET /v1/endpoints/koh9bjdv1v98im` then confirmed `"networkVolumeIds":["d4qw56wbx9","xeb2u0ejfo"]`.
+✅ Also verified live 2026-07-10 (this is the path used before the CLI was rebuilt).
+
+**Fallback B — Console:** Serverless → Edit Endpoint → Advanced → Network Volumes, one per DC, Save.
+
 The handler reads its data from `/runpod-volume/...` exactly as in the single-volume case.
-> **Caveat (honest):** `computeType` lives only in the REST layer, **not** in GraphQL
-> `EndpointInput`. The GraphQL `saveEndpoint` round-trip in (b) reset the endpoint to the
-> GPU default, so the live workers ran on **GPU** (RTX A4500 in EU-RO-1, RTX 3090 in
-> EU-CZ-1) even though (a) asked for CPU. A pure-CPU headless multi-volume path would need
-> the CPU flavor passed *through GraphQL* (`instanceIds`/`cpuFlavorIds`) — not yet verified.
-> The HA behavior (multi-DC, per-DC volume, parity) is identical either way.
+> **Note:** prefer the `runpodctl` path above — it carries `--compute-type` (CPU/GPU)
+> correctly. The raw GraphQL fallback has no `computeType` field, so an endpoint attached
+> that way defaults to GPU; the HA behavior (multi-DC, per-DC volume, parity) is identical.
 
 ### 5. Verify HA + parity — ✅ live 2026-07-10
 Burst of **16** `/run` jobs, polled to completion (cold start ~10 s queue, ~135 ms exec):
@@ -240,18 +240,15 @@ same synced data. `RUNPOD_DC_ID` is the clean per-request DC identifier; poll wi
   through your sync pipeline, not the handler.
 
 ## Gotchas
-- **Multi-volume attach is GraphQL-only (headless).** `runpodctl --network-volume-ids a,b`
-  and REST `POST /v1/endpoints {"networkVolumeIds":["a","b"]}` **both fail** — they pass
-  bare strings, but the API wants `NetworkVolumeIdsInput` objects. Verified working path:
-  create with a single volume, then `saveEndpoint(networkVolumeIds:[{networkVolumeId:…}])`
-  (step 4). The Console UI also works. *`--network-volume-id` (singular) on `runpodctl` /
-  `networkVolumeId` on REST attach exactly one volume and are fine.*
-- **`api.runpod.io/graphql` needs a browser-ish `User-Agent`** — without one, Cloudflare
-  returns `403 / error 1010`. Any non-empty `User-Agent: Mozilla/5.0` clears it.
-- **`computeType` is REST-only, not in GraphQL `EndpointInput`.** A `saveEndpoint`
-  round-trip resets an endpoint to the GPU default; the live run landed on GPU workers
-  despite requesting CPU. HA behavior is unaffected, but don't expect CPU pricing after a
-  GraphQL edit unless you re-pin the CPU flavor through GraphQL.
+- **Multi-volume attach needs runpodctl ≥ v2.4.0** — `runpodctl serverless create
+  --network-volume-ids v1,v2` (check `runpodctl version`; install from
+  [GitHub releases](https://github.com/runpod/runpodctl/releases) if the Homebrew tap is
+  behind). `--network-volume-id` (singular) attaches one volume on any version. REST-only
+  fallback: GraphQL `saveEndpoint` with the object shape (step 4); the Console UI also works.
+- **GraphQL fallback needs a browser-ish `User-Agent`** on `api.runpod.io/graphql`
+  (`User-Agent: Mozilla/5.0`); not needed for the `runpodctl` path.
+- **GraphQL fallback doesn't carry `computeType`** — an endpoint attached via raw
+  `saveEndpoint` defaults to GPU. Use the `runpodctl` path for CPU. HA behavior is identical.
 - **No auto-sync** — the entire reason this path is hard. Drift → inconsistent responses.
 - **One volume per DC** — you can't stack two volumes in the same DC for an endpoint.
   (Live: each worker's `RUNPOD_VOLUME_ID` = its own DC's volume.)
@@ -298,17 +295,12 @@ uv run runpod-storage upload ./model-artifacts <vol-id>   # resumable; re-run to
 - **07 (network-volume handoff)** is the single-volume pod↔serverless case; **10 scales
   it to N volumes across DCs** for availability.
 - **05/09** produce the artifact you then replicate here.
-- **Skill gap RESOLVED (live 2026-07-10):** the headless multi-volume attach is **not**
-  `runpodctl --network-volume-ids` and **not** REST `networkVolumeIds[]` (both send bare
-  strings → `NetworkVolumeIdsInput` object-type error). The working call is the GraphQL
-  `saveEndpoint` mutation with `networkVolumeIds: [{networkVolumeId: "<id>"}, …]` (create
-  with a single volume via REST/`runpodctl` first, then attach the full set) — plus a
-  `User-Agent` header to clear Cloudflare on `api.runpod.io`. This should be folded into
-  [endpoint-workflows.md](../skills/runpod-usage/reference/endpoint-workflows.md) as the
-  canonical multi-region attach recipe, and a `runpodctl`-side bug report is warranted
-  (`--network-volume-ids` advertises the feature but emits the wrong GraphQL shape).
-- **Still open:** a pure-**CPU** headless multi-volume endpoint — `computeType` isn't a
-  GraphQL field, so the `saveEndpoint` attach reverts to GPU; needs the CPU flavor passed
-  via GraphQL (`instanceIds`/`cpuFlavorIds`). If the resumable-transfer step proves
-  essential, consider **vendoring a minimal uploader** (just the multipart+resume core)
-  into the skills repo rather than cloning the whole tool.
+- **Multi-volume attach:** use **`runpodctl serverless create --network-volume-ids v1,v2`
+  on runpodctl ≥ v2.4.0** (check `runpodctl version`; if the Homebrew tap is behind,
+  install from [GitHub releases](https://github.com/runpod/runpodctl/releases)). REST-only
+  fallback: GraphQL `saveEndpoint` with the object shape + a `User-Agent` header for
+  Cloudflare (step 4). Worth folding the version requirement into
+  [endpoint-workflows.md](../skills/runpod-usage/reference/endpoint-workflows.md).
+- **Follow-up:** if the resumable-transfer step proves essential, consider **vendoring a
+  minimal uploader** (just the multipart+resume core) into the skills repo rather than
+  cloning the whole tool.

@@ -148,6 +148,15 @@ runpodctl serverless delete <endpoint-id>             # Delete endpoint
 
 **Model cache (`--model-reference`):** Attach a Hugging Face model to the endpoint by full URL with a ref, e.g. `https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct:main` (the trailing `:main` is the branch/tag/revision). Runpod caches the model on the host in the default Hugging Face cache directory (`/runpod-volume/huggingface-cache/hub/`), so the worker loads it directly — no need to bake the model into the image or attach a network volume. The flag is repeatable, so you can attach multiple models, and uses the standard HF cache path, so anything that already reads the Hugging Face cache (Transformers, vLLM, etc.) picks it up automatically. Works with both `--template-id` and `--hub-id`, but only with `--compute-type GPU`. Requires runpodctl v2.4.0+.
 
+**Multi-region / high-availability (`--network-volume-ids`):** attach **multiple** network
+volumes (one per data center) so workers spread across DCs instead of being pinned to one —
+`runpodctl serverless create --template-id <t> --network-volume-ids <v1>,<v2> --data-center-ids <dc1>,<dc2> …`.
+**Requires runpodctl ≥ v2.4.0** (older versions don't support multi-volume attach). Check
+`runpodctl version`; the Homebrew tap can lag, so prefer the
+[GitHub releases](https://github.com/runpod/runpodctl/releases) binary. Data does **not**
+sync between volumes automatically — see golden path
+[10 — multi-region HA serverless](../../golden-paths/10-multi-region-ha-serverless.md).
+
 For exact serverless flags, run `runpodctl serverless <action> --help`.
 
 ### Templates (alias: tpl)

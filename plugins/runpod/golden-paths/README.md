@@ -43,7 +43,7 @@ observed output) → Gotchas we hit → Cost & cleanup → Skill gaps folded bac
 | 07 | [Network-volume handoff (pod → volume → serverless)](07-network-volume-handoff.md) | pod + serverless | runpodctl + flash | ✅ live-verified |
 | 08 | [Fine-tune → serve (LoRA on a pod → serverless)](08-finetune-to-serverless.md) | train → serve loop | runpodctl + peft/axolotl + flash | ✅ live-verified |
 | 09 | [Custom serverless dev loop (iterate in a pod → dual-mode image → serverless)](09-custom-serverless-dev-loop/README.md) | custom image / escape hatch | runpodctl + docker (dual-mode `MODE_TO_RUN`) | ✅ live-verified |
-| 10 | [Multi-region HA serverless (multi-volume + data sync)](10-multi-region-ha-serverless.md) | serverless / availability | runpodctl + S3 API (aws) + GraphQL `saveEndpoint` (multi-volume attach) | ✅ live-verified |
+| 10 | [Multi-region HA serverless (multi-volume + data sync)](10-multi-region-ha-serverless.md) | serverless / availability | runpodctl ≥v2.4.0 (`--network-volume-ids`) + S3 API (aws) | ✅ live-verified |
 
 > **When a path has two variants, prefer the prebuilt/Hub one** (Variant B for
 > ComfyUI, Variant A for Whisper) unless you need custom code — that's the
