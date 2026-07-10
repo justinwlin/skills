@@ -69,6 +69,14 @@ transformers==4.30.2
 > `RuntimeError: Numpy is not available`. Testing the container locally (below) catches
 > it before deploy (`gotchas.md`).
 
+> **`cryptography` uninstall gotcha (on a `runpod/pytorch` base):** installing the
+> `runpod` SDK on an official `runpod/pytorch` image (e.g. behind `runpod-torch-v280`)
+> fails with `Cannot uninstall cryptography 41.0.7 … no RECORD file` — the base's copy is
+> **Debian-managed**, so pip can't replace it with the newer one `runpod` wants. Fix:
+> `pip install --ignore-installed cryptography runpod` (add `--break-system-packages` for
+> the base's PEP-668 "externally managed" pip). Install conflict-free deps like
+> `faster-whisper` first, on their own. Verified live 2026-07-10 (golden path 09).
+
 For GPU/CUDA workloads, start from a CUDA base and install Python yourself, or
 build on a framework image:
 

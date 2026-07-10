@@ -24,9 +24,18 @@ over the Runpod job API. Proven on the Whisper golden path (both variants).
 runpodctl serverless create --hub-id <id> --name <name> --workers-min 0 --workers-max 3
 # flash
 flash deploy                                  # @Endpoint(workers=(0,3)) in the code
+# Custom image — TWO steps: serverless create takes --template-id/--hub-id, NOT an image.
+runpodctl template create --name <tpl> --serverless \
+  --image <you>/<img>:<tag> --container-disk-in-gb 15 \
+  --env '{"KEY":"VALUE"}'                      # --env is a JSON object here; → template id
+runpodctl serverless create --template-id <template-id> --name <name> \
+  --gpu-id "NVIDIA GeForce RTX 4090" --workers-min 0 --workers-max 2   # --gpu-id, not --gpu-type
 ```
 
-`--workers-min 0` = no GPU billing while idle (pay only per request-second).
+`--workers-min 0` = no GPU billing while idle (pay only per request-second). Don't pin
+`--data-center-ids` for a custom-image endpoint **unless a network volume forces it** — a
+single-DC pin on a scarce GPU leaves workers `throttled` and jobs stuck `IN_QUEUE`
+(observed live, 2026-07-10: EU-RO-1 4090 pin → `throttled:1`; unpinned → scheduled at once).
 
 ### Picking a Hub worker (this decides success)
 

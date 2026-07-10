@@ -42,6 +42,19 @@ symptom → cause → fix. See `docker.md` and `storage.md` for the full mechani
   `test_input.json` (`docker.md` "Test the container locally") — the import warning
   is the early tell; the crash only surfaces on an actual job, not at startup.
 
+## `pip install runpod` fails on a `runpod/pytorch` base ("Cannot uninstall cryptography")
+
+- **Symptom:** building/setting up on an official `runpod/pytorch` image, `pip install
+  runpod` (or `-r requirements.txt`) aborts with `Cannot uninstall cryptography 41.0.7 …
+  no RECORD file was found` (and/or `error: externally-managed-environment`).
+- **Cause:** the base ships a **Debian-managed** `cryptography`, so pip can't uninstall
+  it to install the newer version `runpod` depends on. PEP-668 also marks the base pip
+  "externally managed".
+- **Fix:** `pip install --break-system-packages --ignore-installed cryptography runpod`.
+  Install conflict-free deps (e.g. `faster-whisper`) first, separately, so
+  `--ignore-installed` stays scoped to the `cryptography`/`runpod` pair. Verified live
+  2026-07-10 (golden path 09); bake it into the Dockerfile as two `pip install` steps.
+
 ## Cold starts and timeouts
 
 - **Symptom:** first request after idle is slow or times out; `/runsync` returns

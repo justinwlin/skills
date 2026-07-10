@@ -7,14 +7,20 @@ is scarce or under maintenance, your endpoint can't scale. The fix Runpod suppor
 regions. The catch this path exists to teach: **the volumes do not sync
 automatically** — you must replicate identical data to every one of them, or workers
 in different DCs will serve different data.
-**Status:** ⚠️ **spec (document-only, not yet live-verified).** Every mechanism below
-is grounded in the official Runpod docs
-([network volumes → attach multiple](https://docs.runpod.io/storage/network-volumes),
-[S3-compatible API](https://docs.runpod.io/storage/s3-api)) and the verified paths
-([03](03-whisper-endpoint/README.md), [05](05-model-to-endpoint-pipeline.md),
-[07](07-network-volume-handoff.md)), but the end-to-end multi-region setup hasn't been
-run live yet. ⓥ tags mark what a real run should confirm.
-**Lane(s):** runpodctl (volumes) + `aws`/S3 API (sync, see [companion-clis](../skills/companion-clis/SKILL.md#aws-cli)) + Console/REST (attach volumes to the endpoint) + optionally a CPU/GPU pod (in-DC population)
+**Status:** ✅ **COVERED — live-verified 2026-07-10** end to end. Created **two** 10 GB
+volumes (ha-a in **EU-RO-1**, ha-b in **EU-CZ-1**), **S3-synced identical data to both**
+(`aws s3 ls` byte-identical), deployed **one** endpoint attached to **both** volumes, and
+sent a 16-request burst: **16/16 `COMPLETED`, served by 3 workers across both DCs**
+(EU-RO-1 ×2, EU-CZ-1 ×1), each worker reading its **co-located** volume, and **every
+response identical** (one distinct marker + data string across all 16). The one real
+correction a live run forced: **the headless multi-volume attach is neither
+`runpodctl --network-volume-ids` nor REST `networkVolumeIds[]` — both pass bare strings
+and the API rejects them; it takes a GraphQL `saveEndpoint` with
+`networkVolumeIds: [{networkVolumeId}]` objects** (see step 4). Scope note: **Methods 2/3
+(pod-based population) were *not* re-run here** — they're already live-proven by golden
+path [07](07-network-volume-handoff.md) (a pod writing to a mounted volume). This path's
+live proof is the **S3-API sync + multi-volume attach + multi-DC verification**.
+**Lane(s):** runpodctl (volumes) + `aws`/S3 API (sync, see [companion-clis](../skills/companion-clis/SKILL.md#aws-cli)) + **GraphQL `saveEndpoint`** (attach multiple volumes — the headless path; Console also works) + optionally a CPU/GPU pod (in-DC population, per [07](07-network-volume-handoff.md))
 
 ## The problem, precisely
 
@@ -66,15 +72,28 @@ Each DC has its own endpoint (`https://s3api-<DC>.runpod.io/`); the **bucket nam
 the volume id**. Sync the *same source directory* to *each* volume:
 
 ```bash
-# Same local source → every per-DC volume. --region + --endpoint-url are per-DC.
-for pair in "EU-RO-1:<vol-ro>" "US-KS-2:<vol-ks>" "EUR-IS-1:<vol-is>"; do
+# Same local source → every per-DC volume. --region is the DC id; the endpoint host is
+# the DC id lower-cased (DNS is case-insensitive, so upper-case also resolves).
+for pair in "EU-RO-1:d4qw56wbx9" "EU-CZ-1:xeb2u0ejfo"; do   # DC:volume-id
   DC=${pair%%:*}; VOL=${pair##*:}
-  aws s3 sync ./model-artifacts/ \
-    --region "$DC" --endpoint-url "https://s3api-$DC.runpod.io/" \
-    "s3://$VOL/model-artifacts/"
+  aws s3 sync ./ha-data/ \
+    --region "$DC" \
+    --endpoint-url "https://s3api-$(echo "$DC" | tr 'A-Z' 'a-z').runpod.io/" \
+    "s3://$VOL/ha-data/"
 done
 ```
-ⓥ *`aws s3 ls` on each volume returns the identical file set + sizes.*
+✅ **Live 2026-07-10** — `aws s3 ls` on *both* volumes returned the identical file set +
+sizes (the whole point — proves the two independent disks now match):
+```
+$ aws s3 ls --region EU-RO-1 --endpoint-url https://s3api-eu-ro-1.runpod.io/ s3://d4qw56wbx9/ha-data/
+2026-07-10 17:22:30         77 data.txt
+2026-07-10 17:22:30         28 marker.txt
+$ aws s3 ls --region EU-CZ-1 --endpoint-url https://s3api-eu-cz-1.runpod.io/ s3://xeb2u0ejfo/ha-data/
+2026-07-10 17:22:31         77 data.txt
+2026-07-10 17:22:31         28 marker.txt
+```
+> A preconfigured `aws` profile (`--profile runpod`) held the S3 creds (access key =
+> Runpod `user_...`, secret = `rps_...`); those keys are still **Console-only** to create.
 
 - **Large files / flaky links:** `aws s3 sync` is fine for modest trees but **struggles
   past ~10,000 files** and has weak resume. For big weights, prefer the community tool
@@ -102,7 +121,9 @@ runpodctl pod remove <pod-id>                          # volume keeps the data
 ```
 Volume→volume copy: mount **both** volumes on two pods and use `runpodctl send` /
 `receive` (docs: *Migrate files between volumes*).
-ⓥ *files written on the pod appear in the volume after `pod remove`.*
+> *Pod-writes-to-volume is already live-proven by golden path
+> [07](07-network-volume-handoff.md) — not re-run here; this path's live proof is the S3
+> route below.*
 
 ### Method 3 — cheapest GPU pod (in-DC, GPU work)
 
@@ -121,30 +142,92 @@ schedule).
 
 ### 2. Create one volume per DC
 ```bash
-runpodctl network-volume create --name ha-ro --size <gb> --data-center-id EU-RO-1
-runpodctl network-volume create --name ha-ks --size <gb> --data-center-id US-KS-2
-runpodctl network-volume create --name ha-is --size <gb> --data-center-id EUR-IS-1
+runpodctl network-volume create --name ha-a --size 10 --data-center-id EU-RO-1
+runpodctl network-volume create --name ha-b --size 10 --data-center-id EU-CZ-1
+```
+✅ Live output (each returns its id — these become the S3 bucket names and the attach args):
+```json
+{ "dataCenterId": "EU-RO-1", "id": "d4qw56wbx9", "name": "ha-a", "size": 10 }
+{ "dataCenterId": "EU-CZ-1", "id": "xeb2u0ejfo", "name": "ha-b", "size": 10 }
 ```
 Note: you pay storage **per volume** — N volumes = N× the GB bill. Size only for the
-data you replicate.
+data you replicate. Flags are exactly `--name`, `--size` (1-4000 GB), `--data-center-id`
+(all required; no other options).
 
 ### 3. Replicate identical data to every volume
 Use Method 1/2/3 per DC. **Same source of truth → every volume.** This is the step
-that makes or breaks correctness.
-ⓥ *`aws s3 ls`/listing is byte-identical (names + sizes, ideally checksums) across all N volumes.*
+that makes or breaks correctness. Here: a tiny `ha-data/` (a `marker.txt` + `data.txt`)
+`aws s3 sync`'d to **both** buckets (step "Method 1" above), then `aws s3 ls` confirmed
+the two volumes were byte-identical (77 B + 28 B on each). ✅
 
 ### 4. Attach all volumes to one endpoint (one per DC)
-In the Console: **Serverless → your endpoint → Manage → Edit Endpoint → Advanced →
-Network Volumes**, select the volume for **each** DC, Save. (One volume per DC is
-enforced.) The endpoint's handler reads its data from `/runpod-volume/...` exactly as
-in the single-volume case — workers just now land in multiple DCs.
+You need a **template** first (`runpodctl serverless create` takes `--template-id`/`--hub-id`,
+never `--image` — same two-step as golden path [05](05-model-to-endpoint-pipeline.md)):
+```bash
+runpodctl template create --name rp-gp10-tpl --serverless \
+  --image justinrunpod/rp-gp10:v1 --container-disk-in-gb 10   # → template id p8b3v1prf1
+```
+**The headless multi-volume attach is the one thing the docs got wrong for the CLI/REST
+layer.** Both documented "list" inputs are **broken** — they send bare strings, but the
+GraphQL layer wants `NetworkVolumeIdsInput` **objects** (`{ networkVolumeId }`):
+```bash
+# ✗ runpodctl — rejected:
+runpodctl serverless create --template-id p8b3v1prf1 --compute-type CPU \
+  --network-volume-ids d4qw56wbx9,xeb2u0ejfo ...
+#   → graphql: ... "d4qw56wbx9" at input.networkVolumeIds[0]; Expected type
+#     "NetworkVolumeIdsInput" to be an object.
+# ✗ REST POST /v1/endpoints with "networkVolumeIds": ["d4qw56wbx9","xeb2u0ejfo"] — same error.
+```
+The Console flow works (**Serverless → Edit Endpoint → Advanced → Network Volumes**,
+one per DC, Save). The **headless** path that works is a two-step: create the endpoint
+with a single volume, then attach the full set via the GraphQL `saveEndpoint` mutation
+with the object form:
+```bash
+# a) create with ONE volume (REST accepts the singular field)
+curl -s -X POST https://rest.runpod.io/v1/endpoints \
+  -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' \
+  -d '{"templateId":"p8b3v1prf1","name":"rp-gp10-ha","computeType":"CPU",
+       "networkVolumeId":"d4qw56wbx9","dataCenterIds":["EU-RO-1","EU-CZ-1"],
+       "workersMin":0,"workersMax":4}'          # → endpoint id koh9bjdv1v98im
 
-### 5. Verify HA + parity
-Send a burst of requests and confirm (a) workers spin up in **more than one** DC, and
-(b) every response is identical regardless of which DC served it — proving the volumes
-are in sync. Poll with `/run` + `/status` (cold starts; see
-[endpoint-workflows](../skills/runpod-usage/reference/endpoint-workflows.md)).
-ⓥ *workers observed across ≥2 DCs; identical output from each; endpoint keeps scaling when one DC is scarce.*
+# b) attach BOTH via GraphQL saveEndpoint (objects, not strings).
+#    NOTE the User-Agent header — api.runpod.io returns 403/1010 (Cloudflare) without a browser-ish UA.
+curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
+  -H 'Content-Type: application/json' -H 'User-Agent: Mozilla/5.0' \
+  -d '{"query":"mutation($input:EndpointInput!){saveEndpoint(input:$input){id name}}",
+       "variables":{"input":{"id":"koh9bjdv1v98im","name":"rp-gp10-ha","templateId":"p8b3v1prf1",
+         "dataCenterIds":["EU-RO-1","EU-CZ-1"],
+         "networkVolumeIds":[{"networkVolumeId":"d4qw56wbx9"},{"networkVolumeId":"xeb2u0ejfo"}],
+         "workersMin":0,"workersMax":4,"scalerType":"QUEUE_DELAY","scalerValue":1,"idleTimeout":10}}}'
+```
+✅ `GET /v1/endpoints/koh9bjdv1v98im` then confirmed `"networkVolumeIds":["d4qw56wbx9","xeb2u0ejfo"]`.
+The handler reads its data from `/runpod-volume/...` exactly as in the single-volume case.
+> **Caveat (honest):** `computeType` lives only in the REST layer, **not** in GraphQL
+> `EndpointInput`. The GraphQL `saveEndpoint` round-trip in (b) reset the endpoint to the
+> GPU default, so the live workers ran on **GPU** (RTX A4500 in EU-RO-1, RTX 3090 in
+> EU-CZ-1) even though (a) asked for CPU. A pure-CPU headless multi-volume path would need
+> the CPU flavor passed *through GraphQL* (`instanceIds`/`cpuFlavorIds`) — not yet verified.
+> The HA behavior (multi-DC, per-DC volume, parity) is identical either way.
+
+### 5. Verify HA + parity — ✅ live 2026-07-10
+Burst of **16** `/run` jobs, polled to completion (cold start ~10 s queue, ~135 ms exec):
+```
+STATUS:            {'COMPLETED': 16}          # 16/16 succeeded
+WORKERS (3 total): EU-RO-1 ×2, EU-CZ-1 ×1     # scheduled across BOTH DCs
+DISTINCT markers:  1   ('golden-path-10 HA marker v1')     # identical regardless of DC
+DISTINCT data:     1   ('shared-model-payload: checksum-anchor 42 …')
+```
+Per-worker identity (from the handler returning `socket.gethostname()` + `RUNPOD_*` env):
+```
+worker 4100bc76ce48: RUNPOD_DC_ID=EU-CZ-1  RUNPOD_VOLUME_ID=xeb2u0ejfo  (ha-b)
+worker ca7909f9bdbe: RUNPOD_DC_ID=EU-RO-1  RUNPOD_VOLUME_ID=d4qw56wbx9  (ha-a)
+worker b1b4e4d2f0f2: RUNPOD_DC_ID=EU-RO-1  RUNPOD_VOLUME_ID=d4qw56wbx9  (ha-a)
+```
+This is the whole thesis, proven: **each worker landed in a different DC and mounted
+that DC's own volume** (`RUNPOD_VOLUME_ID` = the co-located volume, `/runpod-volume`
+points at it), yet **every response was byte-identical** because both volumes carried the
+same synced data. `RUNPOD_DC_ID` is the clean per-request DC identifier; poll with
+`/run` + `/status` (see [endpoint-workflows](../skills/runpod-usage/reference/endpoint-workflows.md)).
 
 ## Keeping volumes in sync (operating discipline)
 - **One source of truth.** Treat a canonical local dir (or your own S3 bucket) as
@@ -157,8 +240,21 @@ are in sync. Poll with `/run` + `/status` (cold starts; see
   through your sync pipeline, not the handler.
 
 ## Gotchas
+- **Multi-volume attach is GraphQL-only (headless).** `runpodctl --network-volume-ids a,b`
+  and REST `POST /v1/endpoints {"networkVolumeIds":["a","b"]}` **both fail** — they pass
+  bare strings, but the API wants `NetworkVolumeIdsInput` objects. Verified working path:
+  create with a single volume, then `saveEndpoint(networkVolumeIds:[{networkVolumeId:…}])`
+  (step 4). The Console UI also works. *`--network-volume-id` (singular) on `runpodctl` /
+  `networkVolumeId` on REST attach exactly one volume and are fine.*
+- **`api.runpod.io/graphql` needs a browser-ish `User-Agent`** — without one, Cloudflare
+  returns `403 / error 1010`. Any non-empty `User-Agent: Mozilla/5.0` clears it.
+- **`computeType` is REST-only, not in GraphQL `EndpointInput`.** A `saveEndpoint`
+  round-trip resets an endpoint to the GPU default; the live run landed on GPU workers
+  despite requesting CPU. HA behavior is unaffected, but don't expect CPU pricing after a
+  GraphQL edit unless you re-pin the CPU flavor through GraphQL.
 - **No auto-sync** — the entire reason this path is hard. Drift → inconsistent responses.
 - **One volume per DC** — you can't stack two volumes in the same DC for an endpoint.
+  (Live: each worker's `RUNPOD_VOLUME_ID` = its own DC's volume.)
 - **S3 API isn't in every DC** — check availability; fall back to a CPU pod (Method 2).
 - **GPU must exist in each chosen DC** — a volume in a GPU-dry DC adds no availability.
 - **`aws s3 sync` scaling** — flaky past ~10k files; `ls` slow on >10k files / >10GB;
@@ -170,15 +266,17 @@ are in sync. Poll with `/run` + `/status` (cold starts; see
 
 ## Cost & cleanup
 ```bash
-# Endpoint: detach volumes (Edit Endpoint) or delete the endpoint
-runpodctl serverless delete <endpoint-id>
-# Delete every volume you created (each billed separately)
-runpodctl network-volume delete <vol-ro>
-runpodctl network-volume delete <vol-ks>
-runpodctl network-volume delete <vol-is>
-runpodctl network-volume list      # confirm clean
+runpodctl serverless delete koh9bjdv1v98im     # the endpoint (deletes the multi-volume attach)
+runpodctl template delete   p8b3v1prf1         # the template
+runpodctl network-volume delete d4qw56wbx9     # ha-a (EU-RO-1) — billed separately
+runpodctl network-volume delete xeb2u0ejfo     # ha-b (EU-CZ-1)
+runpodctl serverless list && runpodctl network-volume list && runpodctl pod list   # confirm clean
 ```
-Any sync pods should already be removed with `--terminate-after`.
+✅ All four `{"deleted": true}` on the live run; lists came back with only pre-existing
+resources. Any sync pods should already be removed with `--terminate-after`. The pushed
+image `justinrunpod/rp-gp10:v1` (a ~150 MB `python:3.11-slim` + `runpod` SDK handler that
+returns `/runpod-volume` contents plus `RUNPOD_DC_ID`/`RUNPOD_VOLUME_ID`) was **left
+public** so this doc references a real, pullable tag; it costs nothing.
 
 ## Companion tool: resumable transfers
 For large weights across several volumes, `aws s3 sync` (weak resume, 10k-file wall) is
@@ -200,10 +298,17 @@ uv run runpod-storage upload ./model-artifacts <vol-id>   # resumable; re-run to
 - **07 (network-volume handoff)** is the single-volume pod↔serverless case; **10 scales
   it to N volumes across DCs** for availability.
 - **05/09** produce the artifact you then replicate here.
-- **Skill gaps to fold back after a live run:** confirm the exact
-  `runpodctl`/REST call to attach multiple volumes to an endpoint (docs show the
-  Console flow; verify a CLI/API path exists) and update
-  [endpoint-workflows.md](../skills/runpod-usage/reference/endpoint-workflows.md). If the
-  resumable-transfer step proves essential, consider **vendoring a minimal uploader**
-  (just the multipart+resume core) into the skills repo rather than cloning the whole
-  tool.
+- **Skill gap RESOLVED (live 2026-07-10):** the headless multi-volume attach is **not**
+  `runpodctl --network-volume-ids` and **not** REST `networkVolumeIds[]` (both send bare
+  strings → `NetworkVolumeIdsInput` object-type error). The working call is the GraphQL
+  `saveEndpoint` mutation with `networkVolumeIds: [{networkVolumeId: "<id>"}, …]` (create
+  with a single volume via REST/`runpodctl` first, then attach the full set) — plus a
+  `User-Agent` header to clear Cloudflare on `api.runpod.io`. This should be folded into
+  [endpoint-workflows.md](../skills/runpod-usage/reference/endpoint-workflows.md) as the
+  canonical multi-region attach recipe, and a `runpodctl`-side bug report is warranted
+  (`--network-volume-ids` advertises the feature but emits the wrong GraphQL shape).
+- **Still open:** a pure-**CPU** headless multi-volume endpoint — `computeType` isn't a
+  GraphQL field, so the `saveEndpoint` attach reverts to GPU; needs the CPU flavor passed
+  via GraphQL (`instanceIds`/`cpuFlavorIds`). If the resumable-transfer step proves
+  essential, consider **vendoring a minimal uploader** (just the multipart+resume core)
+  into the skills repo rather than cloning the whole tool.

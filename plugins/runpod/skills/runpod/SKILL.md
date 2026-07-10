@@ -83,6 +83,23 @@ prebuilt template / Hub worker over building from scratch** → provision → se
   `endpoint-workflows.md` (Hub worker vs flash vs custom image; invoke `/run`/
   `/runsync`; poll job status).
 
+## Worked examples (golden paths)
+
+Ten end-to-end, mostly **live-verified** scenarios live in
+[`../../golden-paths/README.md`](../../golden-paths/README.md) — the yardstick for "can
+an agent finish the job", with real commands + observed output to copy from. When a
+task matches one, **open its golden path first** instead of re-deriving it:
+
+| Want to… | Golden path |
+| --- | --- |
+| Run a server (Ollama/ComfyUI) on a pod at a URL | [01](../../golden-paths/01-ollama-pod.md), [02](../../golden-paths/02-comfyui-pod/README.md) |
+| Deploy a serverless model endpoint (Hub / flash / custom image) | [03](../../golden-paths/03-whisper-endpoint/README.md), [05](../../golden-paths/05-model-to-endpoint-pipeline.md) |
+| Fine-tune, then serve the result | [04](../../golden-paths/04-finetune-pod.md), [08](../../golden-paths/08-finetune-to-serverless.md) |
+| Interactive dev box (SSH / VS Code) | [06](../../golden-paths/06-dev-pod.md) |
+| Move data pod → volume → serverless | [07](../../golden-paths/07-network-volume-handoff.md) |
+| **Custom serverless when flash isn't enough** (dual-mode image dev loop) | [09](../../golden-paths/09-custom-serverless-dev-loop/README.md) |
+| **High availability / multi-region** serverless (multi-volume + data sync) | [10](../../golden-paths/10-multi-region-ha-serverless.md) |
+
 ## Multi-lane tasks
 
 Sequence is always **understand → produce artifacts → manage infra → verify**,
