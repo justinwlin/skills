@@ -118,11 +118,14 @@ symptom → cause → fix. See `docker.md` and `storage.md` for the full mechani
   REST v1; the MCP server does expose `stream-pod-logs`/worker log streaming).
 - **Variant — job goes `IN_PROGRESS` then times out:** a worker *picks up* the job
   (`IN_PROGRESS`) but never returns output, and the job fails with
-  `"job timed out after 1 retries"` after ~30–50 s. The worker runtime isn't
-  returning results — same class of broken worker. Seen with flash-deployed
-  endpoints too (independent of GPU/CPU, sync/async handler, deps). Get the **worker
-  logs** (MCP `stream-*-logs` or the Console) before guessing, and try a **different
-  data center** — don't burn attempts blind.
+  `"job timed out after 1 retries"` after ~30–50 s. This looks like a broken worker
+  but is often a **job-reject by a healthy worker** — get the **worker logs** (MCP
+  `stream-worker-logs` or the Console) before assuming the image is bad. A real case
+  (flash endpoint, 2026-07-10): the worker's fitness checks passed, then it logged
+  `read() got an unexpected keyword argument …` / `Job has missing field(s): id or
+  input` — a handler-signature + empty-input bug, **not** a broken worker (see
+  flash gotcha "Request body shape"). Only if the logs show a genuinely dead/looping
+  worker should you switch workers or try a different data center.
 
 ## Delete returns an error but succeeded
 

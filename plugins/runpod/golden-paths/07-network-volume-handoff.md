@@ -3,10 +3,11 @@
 **Goal:** produce data on a **pod**, persist it to a **network volume**, and have a
 **serverless endpoint** read that same data — the pattern behind "fine-tune on a pod,
 then serve the adapter from an endpoint."
-**Status:** MECHANICS live-verified 2026-07-08 (volume shared pod↔endpoint, mount paths
-confirmed). The serverless **read-back did not complete** — the flash reader worker timed
-out (reproduced 6×); see [Known blocker](#known-blocker-flash-qb-worker-timeout).
-**Lane(s):** runpodctl (volume + pod) + flash (serverless reader)
+**Status:** COVERED — live-verified 2026-07-10 end to end (pod wrote `/workspace/hello.txt`;
+a flash serverless worker read it back at `/runpod-volume/hello.txt` and returned the exact
+contents). The earlier read-back failures were a handler-signature / empty-input bug, not the
+handoff — see [Root cause](#root-cause-why-the-reader-first-timed-out-found-via-mcp-worker-logs).
+**Lane(s):** runpodctl (volume + pod) + flash (serverless reader) + Runpod MCP (`stream-worker-logs`, for diagnosis)
 
 ## When to use this
 Any two-phase workflow where a pod produces an artifact and serverless consumes it:
@@ -72,10 +73,15 @@ vol = NetworkVolume(id="<vol-id>", datacenter=DataCenter.EU_RO_1)   # attach EXI
 
 @Endpoint(name="handoff-reader", cpu=CpuInstanceType.CPU3C_1_2,
           workers=(0, 1), datacenter=DataCenter.EU_RO_1, volume=vol)
-async def read(input: dict) -> dict:                 # async; param named `input` = plain contract
+async def read(**kwargs) -> dict:                    # see Root cause: flash calls read(**job_input)
     p = "/runpod-volume/hello.txt"                   # NOTE: /runpod-volume, not /workspace
-    return {"content": open(p).read() if os.path.exists(p) else None}
+    return {"exists": os.path.exists(p),
+            "content": open(p).read() if os.path.exists(p) else None}
 ```
+**Handler signature matters** — flash invokes the handler as `read(**job_input)`, spreading
+the request's `input` dict as keyword arguments. Use `**kwargs` (or name parameters to match
+the input keys); a plain `def read(input: dict)` fails with
+`read() got an unexpected keyword argument …`. See [Root cause](#root-cause-why-the-reader-first-timed-out-found-via-mcp-worker-logs).
 ```bash
 RUNPOD_API_KEY=... flash deploy
 runpodctl serverless list        # confirm the endpoint's networkVolumeId == your volume id
@@ -85,24 +91,38 @@ wrote to — the **same volume is attached to both sides**. `NetworkVolume(id=..
 the existing volume deterministically (there is also a `name=`/`dataCenterId=` form).
 
 ### 4. Invoke and read the artifact back
+Send a **non-empty** `input` (an empty `{}` is rejected by the worker SDK as "missing input"):
 ```bash
 curl -s https://api.runpod.ai/v2/<endpoint-id>/run -H "Authorization: Bearer $RUNPOD_API_KEY" \
-  -H 'Content-Type: application/json' -d '{"input":{}}'      # then poll /status/<job-id>
+  -H 'Content-Type: application/json' -d '{"input":{"noop":true}}'   # then poll /status/<job-id>
 ```
-**This step did not succeed in testing — see the blocker below.**
+Verified result (2026-07-10) — the serverless worker read exactly what the pod wrote:
+```json
+"output": { "exists": true, "content": "handoff via MCP+skills 2026-07-10\n",
+            "runpod_volume_listing": ["hello.txt"] }, "status": "COMPLETED"
+```
 
-## Known blocker: flash QB worker timeout
-Every invocation of the flash reader returned `"job timed out after 1 retries"` after
-~30–50 s with no result — reproduced **6×**: GPU (sync and async handler), CPU, with and
-without `dependencies`, and via both raw `curl /run` and the flash SDK client
-(`ReadTimeout`). Jobs went `IN_QUEUE → IN_PROGRESS` (a worker picked them up) but the
-worker never returned output. That signature — worker runs, job never completes — is the
-same class as a broken/mis-dispatching serverless worker (see
-[`../skills/runpod-usage/reference/gotchas.md`](../skills/runpod-usage/reference/gotchas.md)).
-It was **not** the handoff wiring (the volume attach + paths are correct) or the handler
-(trivial file read). Diagnosing it needs **worker logs** — not exposed by `runpodctl`/REST
-here; use the Runpod **MCP server** (`stream-*-logs`) or the Console — or try a **different
-data center**. Until then, treat the serverless read-back as unverified.
+> **Redeploy note:** flash keeps warm workers on the **old** artifact after a `flash deploy`
+> until they recycle. If a code change doesn't take effect, `flash undeploy <name> --force`
+> then `flash deploy` for fresh workers.
+
+## Root cause: why the reader first timed out (found via MCP worker logs)
+Early runs returned `"job timed out after 1 retries"` with the worker `IN_PROGRESS` but never
+returning — which *looked* like a broken worker. It wasn't the handoff, the volume, or the
+data center. Streaming the worker's logs with the Runpod MCP's `stream-worker-logs` (once the
+prod v2 REST API was up) showed the worker was **healthy** — fitness checks passed, handler
+loaded — and the real errors:
+
+1. With an **empty** `input` (`{"input":{}}`): `Failed to get job … Job has missing field(s):
+   id or input.` The SDK rejects an empty input as missing → send a non-empty `input`.
+2. With a non-empty input against a `def read(input: dict)` handler:
+   `read() got an unexpected keyword argument 'noop'` — flash calls the handler as
+   `read(**job_input)`, spreading the input dict as kwargs.
+
+**Fix:** handler takes `**kwargs` (or params matching the input keys) **and** invoke with a
+non-empty `input`. Lesson: with no worker-log visibility a job-reject is indistinguishable
+from a broken worker — get the logs (MCP `stream-worker-logs`) before assuming the worker is
+bad.
 
 ## Cost & cleanup
 ```bash
@@ -122,13 +142,20 @@ The verified simple case scales directly to the motivating workflow:
    adapter from `/runpod-volume/outputs/…` (the mount-path swap) on top of the base model.
 
 Same three moves as above (volume · pod writes · endpoint reads at `/runpod-volume`) — only
-the payload changes from a text file to a trained adapter. Not yet run end to end
-(inherits the read-back blocker above).
+the payload changes from a text file to a trained adapter. The handoff itself is verified;
+this specific fine-tune variant hasn't been run end to end (spec).
 
 ## Skill facts confirmed / folded back
 - `storage.md` already documents the `/workspace` (pod) vs `/runpod-volume` (serverless)
   mount-path split — confirmed correct in practice.
 - flash attaches an existing volume via `NetworkVolume(id=...)` (deterministic); the pod
   side uses `--network-volume-id`. Both must be in the volume's DC.
-- New gotcha recorded: flash-deployed endpoint jobs timing out with a worker that never
-  returns — diagnose via MCP worker logs or a different DC, don't wait it out.
+- **flash handler contract:** flash calls `read(**job_input)` — the handler must accept the
+  input keys as kwargs (`**kwargs` is safest), and the `input` must be non-empty (an empty
+  `{}` is rejected as "missing input"). A `def read(input: dict)` handler fails.
+- **Diagnosis:** the Runpod MCP `stream-worker-logs` distinguishes a job-reject (healthy
+  worker, bad payload/handler) from a genuinely broken worker — reach for it before assuming
+  the worker image is bad. Requires the prod v2 REST API to be reachable.
+- A brand-new pod can draw a bad machine where the runtime never becomes ready (`ssh info`
+  stays "pod not ready", `runtime: false`); delete it and create a fresh one rather than
+  waiting indefinitely.
