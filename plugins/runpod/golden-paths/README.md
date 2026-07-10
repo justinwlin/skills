@@ -5,9 +5,9 @@ the Runpod skills — the yardstick for "can it actually do everything agentical
 and a worked reference to copy from.
 
 These are agent-facing scenarios, not marketing demos. An agent — not a human
-clicking the Console — must be able to complete them. **01–03 were run live on a
-real account** (each caught real skill bugs we then fixed); **04–06 are specs**
-grounded in the skills + docs but not yet executed.
+clicking the Console — must be able to complete them. **01–03, plus 04, 05, 06, 07,
+and 08, were run live on a real account** (each caught real skill bugs we then
+fixed) — 04's training phase was verified as the train phase of golden path 08.
 
 ## Layout
 
@@ -30,9 +30,9 @@ observed output) → Gotchas we hit → Cost & cleanup → Skill gaps folded bac
 | 03 | [Whisper endpoint (audio → text)](03-whisper-endpoint/README.md) | serverless | — | ✅ live-verified |
 | | ↳ [Variant A — Runpod Hub worker](03-whisper-endpoint/variant-a-hub.md) | | runpodctl + Hub (recommended) | ✅ |
 | | ↳ [Variant B — from scratch with flash](03-whisper-endpoint/variant-b-flash.md) | | flash code-first handler | ✅ |
-| 04 | [LoRA fine-tune (training run) on a pod](04-finetune-pod.md) | pod / batch job | runpodctl pod + volume | ⚠️ spec |
-| 05 | [Custom model → serverless endpoint](05-model-to-endpoint-pipeline.md) | cross-lane pipeline | hf → docker → runpodctl | ⚠️ spec |
-| 06 | [Interactive dev pod (SSH / VS Code)](06-dev-pod.md) | pod / interactive | runpodctl pod + volume | ⚠️ spec |
+| 04 | [LoRA fine-tune (training run) on a pod](04-finetune-pod.md) | pod / batch job | runpodctl pod + volume | ✅ live-verified (training phase, via 08) |
+| 05 | [Custom model → serverless endpoint](05-model-to-endpoint-pipeline.md) | cross-lane pipeline | hf → docker → runpodctl | ✅ live-verified |
+| 06 | [Interactive dev pod (SSH / VS Code)](06-dev-pod.md) | pod / interactive | runpodctl pod + volume | ✅ live-verified |
 | 07 | [Network-volume handoff (pod → volume → serverless)](07-network-volume-handoff.md) | pod + serverless | runpodctl + flash | ✅ live-verified |
 | 08 | [Fine-tune → serve (LoRA on a pod → serverless)](08-finetune-to-serverless.md) | train → serve loop | runpodctl + peft/axolotl + flash | ✅ live-verified |
 

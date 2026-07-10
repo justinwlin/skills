@@ -29,6 +29,19 @@ symptom → cause → fix. See `docker.md` and `storage.md` for the full mechani
   Registry, then select them on the template/endpoint. Runpod uses
   `docker login`-style creds.
 
+## Image builds, then inference crashes with "Numpy is not available"
+
+- **Symptom:** the image builds fine and the worker **starts**, but the first job
+  fails at inference with `RuntimeError: Numpy is not available` (often preceded at
+  import by `UserWarning: Failed to initialize NumPy: _ARRAY_API not found`).
+- **Cause:** a NumPy 2.x / older-torch ABI mismatch. `pip install torch==2.2.2`
+  pulls the latest `numpy` (2.x) by default, but that torch wheel was built against
+  NumPy 1.x and can't use 2.x — any `.numpy()` call at inference throws.
+- **Fix:** pin `numpy<2` in `requirements.txt` (or upgrade torch to a numpy-2-aware
+  build). Catch it **before deploy** by running the container locally against a
+  `test_input.json` (`docker.md` "Test the container locally") — the import warning
+  is the early tell; the crash only surfaces on an actual job, not at startup.
+
 ## Cold starts and timeouts
 
 - **Symptom:** first request after idle is slow or times out; `/runsync` returns
@@ -50,6 +63,15 @@ symptom → cause → fix. See `docker.md` and `storage.md` for the full mechani
   the assigned public IP / external TCP port from the **Connect** menu once
   populated. Note external TCP port mappings change on every pod reset, and
   Community Cloud public IPs can change on migration/restart.
+- **Variant — after a `pod stop`→`start`, the external TCP port is reassigned AND
+  `runpodctl ssh info` can hand you a STALE port.** Live case (dev pod, 2026-07-10):
+  the pod first came up on port `17740`; after stop/start the *first* `ssh info`
+  still reported `17740` (all SSH connections refused) and reported `READY` while
+  sshd was still down for ~90s — a moment later a fresh `ssh info` returned the real
+  new port `12890`. **Fix:** after a restart don't trust the first `READY` or the
+  first port — re-run `ssh info` until you get a port that actually accepts an `ssh`
+  connection, then update your `~/.ssh/config` `Port`. This is what breaks VS Code
+  Remote-SSH reconnects (see golden path 06).
 
 ## Proxy 524 / 100-second timeout
 

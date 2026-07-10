@@ -1,125 +1,202 @@
 # Golden path 06 — interactive dev pod (SSH / VS Code + persistent /workspace)
 
-**Goal:** from "give me a Runpod dev box I can SSH into / open in VS Code", an
-agent provisions a GPU (or CPU) pod on a **PyTorch template** with a **network
-volume at `/workspace`**, returns a ready-to-use SSH connection (and a VS Code
-Remote-SSH config), and confirms an interactive session works with storage that
-**persists across stop/restart**.
+**Goal:** from "give me a Runpod dev box I can SSH into / open in VS Code", an agent
+provisions a pod on a PyTorch template with a **network volume at `/workspace`**, returns a
+ready-to-use **SSH-over-TCP** connection (and the `~/.ssh/config` block VS Code / Cursor
+Remote-SSH reads), and proves an interactive session works with storage that **survives a
+stop/restart**.
 
-Unlike a *service* pod (01/02) there's no HTTP proxy URL to poll and no
-`0.0.0.0`-bound server — **success is a live interactive shell/IDE session on a
-box whose `/workspace` survives a stop/restart**. It follows the pod development
-loop (`../skills/runpod-usage/reference/pod-workflows.md`), stopping at "connect".
+Unlike a *service* pod (01/02) there's no HTTP proxy URL to poll — **success is a live
+interactive shell whose `/workspace` survives a stop/restart, plus a VS Code Remote-SSH
+connection string that actually resolves and downloads the server.**
+**Status:** COVERED — live-verified 2026-07-10. Created an RTX 4090 pod on `runpod-torch-v280`
+in EU-RO-1 with a 10 GB network volume at `/workspace`; SSH-exec returned real GPU/torch output;
+a marker file survived a real `pod stop`→`pod start` (ephemeral `/root` was wiped, container
+hostname changed); and the VS Code Remote-SSH transport connected via a `~/.ssh/config` alias
+and the pod fetched the **exact** `vscode-server-linux-x64.tar.gz` for the local editor's commit
+(HTTP 200). The one thing not machine-checkable is the final GUI click (see [VS Code](#4-vs-code--cursor-remote-ssh-what-was-verified-headlessly)).
+**Lane(s):** runpodctl (pod + volume) + SSH-exec. Builds on the pod-create + readiness-poll
+pattern from golden path [07](07-network-volume-handoff.md).
 
-Grounded in: `docs/pods/configuration/connect-to-ide.mdx`,
-`docs/pods/configuration/use-ssh.mdx`, `runpodctl/SKILL.md`, `storage.md`,
-`networking.md`, `../skills/runpod-usage/reference/development-loop.md`.
+## When to use this
+The user wants a **box they log into and work on interactively** — an SSH shell, a VS Code /
+Cursor Remote-SSH window, a scratch GPU for experiments — not a served endpoint. Reach for it
+whenever the task is "give me a dev machine" rather than "deploy this model". If instead you
+need to *serve* something over a URL, that's golden path [01](01-ollama-pod.md)/[02](02-comfyui-pod/README.md);
+if you're running a *batch* training job, that's [04](04-finetune-pod.md)/[08](08-finetune-to-serverless.md).
 
-## Acceptance criteria
+## Prerequisites
+- `RUNPOD_API_KEY` resolvable (`export RUNPOD_API_KEY=...`).
+- `runpodctl` installed.
+- **An SSH key registered on the account BEFORE the pod boots.** Runpod injects registered
+  public keys into the pod's `~/.ssh/authorized_keys` **at startup** — a key added after the
+  pod is running won't be picked up without a restart (see
+  [`../skills/runpod-usage/reference/getting-started.md`](../skills/runpod-usage/reference/getting-started.md)).
+  Confirm with `runpodctl ssh list-keys`; if empty, register one:
+  ```bash
+  ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''          # if you don't have one
+  runpodctl ssh add-key --key-file ~/.ssh/id_ed25519.pub
+  runpodctl ssh list-keys                                    # confirm it's on the account
+  ```
+- For VS Code Remote-SSH on your machine: VS Code/Cursor with the **Remote-SSH** extension.
 
-1. **Auth** resolved (`export RUNPOD_API_KEY=...`).
-2. **SSH key on the account before the pod starts.** The public key must be
-   present at boot so it's injected into the pod's `~/.ssh/authorized_keys`; add
-   it *after* the pod is running and the pod won't pick it up without a
-   redeploy/manual step (see gotcha). Use `runpodctl ssh add-key`.
-3. Pod from an **official PyTorch template** (SSH over exposed TCP is
-   preconfigured), GPU or CPU per the user's need, with **TCP `22` exposed** and a
-   **network volume at `/workspace`**. Use `--stop-after` (keep the box) — not
-   `--terminate-after` — for a dev box the user wants to return to.
-4. Agent retrieves connection details (`runpodctl ssh info <pod-id>`) and returns
-   **both** the ready SSH command and a VS Code / Cursor Remote-SSH `~/.ssh/config`
-   block.
-5. **Verify interactivity**, not "Running": a non-interactive `ssh <host> 'echo
-   ok && nvidia-smi'` (or `uname -a` for CPU) must succeed from outside.
-6. Confirm persistence: write a marker to `/workspace`, and note that it survives
-   stop/restart while everything outside `/workspace` is wiped.
+## Walkthrough (verified commands)
 
-## Ideal agentic flow (runpodctl lane)
-
+### 1. Persistent workspace — a network volume in your target DC
+`/workspace` on a dev pod is backed by a network volume so your code/data survives a reset.
+The volume is **pinned to one DC**; the pod must run in that same DC.
 ```bash
-export RUNPOD_API_KEY=your_key
-
-# 1. Register the SSH key FIRST (must exist before the pod boots to be injected)
-runpodctl ssh add-key --key-file ~/.ssh/id_ed25519.pub    # generate one if needed:
-#   ssh-keygen -t ed25519 -C "you@example.com"
-runpodctl ssh list-keys                                    # confirm it's on the account
-
-# 2. Persistent workspace: a network volume in a DC that has your GPU
-runpodctl datacenter list                                  # pick a DC (GPU + volume)
-runpodctl network-volume create --name devbox --size 50 --data-center-id <dc>
-
-# 3. Provision — PyTorch template (SSH-over-TCP ready), volume at /workspace,
-#    TCP 22 exposed, STOP guard (keep the box), GPU or CPU.
-runpodctl template search pytorch                          # official PyTorch template id
-runpodctl pod create --name devbox \
-  --template-id <runpod-pytorch-template-id> \
-  --gpu-id "NVIDIA GeForce RTX 4090" --data-center-ids <dc> \
-  --ports "22/tcp" \
-  --network-volume-id <volume-id> --volume-mount-path /workspace \
-  --ssh --stop-after <iso8601>                             # STOP (keep), not terminate
-#   CPU dev box instead: --compute-type cpu --image runpod/pytorch:... (drop --gpu-id)
-
-runpodctl pod get <pod-id>                                 # poll until running
-runpodctl ssh info <pod-id>                                 # SSH command + key (TCP form)
-
-# 4. Verify it's actually interactive (not just "Running")
-ssh <pod-ssh> 'echo ok && nvidia-smi'                      # CPU: 'echo ok && uname -a'
-
-# 5. Prove /workspace persistence
-ssh <pod-ssh> 'echo "hello $(date)" > /workspace/marker.txt && cat /workspace/marker.txt'
-#   after a stop/start the file is still there; anything outside /workspace is gone
-
-# 6. Hand off — SSH command + a VS Code / Cursor Remote-SSH config block
-#    (use the "SSH over exposed TCP" host/port from `ssh info` — root@<ip> -p <port>)
+runpodctl network-volume create --name devbox-demo --size 10 --data-center-id EU-RO-1
+# → id, e.g. gjj71yzmnd, in EU-RO-1
 ```
 
-Give the user a `~/.ssh/config` entry so VS Code / Cursor **Remote-SSH: Connect to
-Host** works (Command Palette → *Remote-SSH: Connect to Host* → pick the host →
-**Open Folder** → `/workspace`):
+### 2. Create the pod — PyTorch template, volume at `/workspace`, TCP 22 exposed
+Follow golden path 07's create flags. The two additions for a dev box: `--ports "22/tcp"` (so
+SSH is reachable over a **public IP + external TCP port**, which VS Code Remote-SSH requires)
+and the volume mounted at `/workspace`.
+```bash
+runpodctl pod create --name devbox-demo \
+  --template-id runpod-torch-v280 --gpu-id "NVIDIA GeForce RTX 4090" \
+  --data-center-ids EU-RO-1 \
+  --network-volume-id <vol-id> --volume-mount-path /workspace \
+  --ports "22/tcp" \
+  --ssh --terminate-after <iso8601 ~1-2h out>       # TEST guard — see note below
+```
+> **`--terminate-after` vs `--stop-after`.** This live run used `--terminate-after` as a
+> **cost guard for a throwaway test** (it deletes the pod at the deadline). For a **real dev
+> box the user returns to**, use `--stop-after` instead — `stop` preserves the pod and its
+> `/workspace`; `terminate`/`remove` **deletes** the pod (the network volume still survives
+> either way, since it's a separate resource). Verified image on `runpod-torch-v280`:
+> `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404`, RTX 4090 at **$0.69/hr**.
 
+### 3. Poll until the runtime is up, then read the SSH-over-TCP connection
+`ssh info` returns `"error": "pod not ready"` until the runtime is live — poll it (07's
+pattern). If it stays "pod not ready" / `runtime: false` past ~5–6 min, it's a **bad machine
+draw** — `pod remove` and recreate rather than waiting forever ([07](07-network-volume-handoff.md), `gotchas.md`).
+```bash
+runpodctl ssh info <pod-id>
+# → {"ip":"213.173.108.151","port":17740,
+#    "ssh_command":"ssh -i /Users/you/.runpod/ssh/RunPod-Key-Go root@213.173.108.151 -p 17740", ...}
+```
+`ssh info` hands you the **public-IP + external-port TCP form directly** — this is the form
+VS Code Remote-SSH needs (not the proxied `…@ssh.runpod.io` basic-SSH form). It also names the
+key path to use (`ssh_key.path`); agents should use that exact path.
+
+### 4. Verify it's actually interactive (not just "Running")
+Connect non-interactively (07's flags). Use the IP/port/key from `ssh info`:
+```bash
+ssh -i /Users/you/.runpod/ssh/RunPod-Key-Go \
+    -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    -p 17740 root@213.173.108.151 \
+    'hostname; nvidia-smi -L; python3 --version; \
+     python3 -c "import torch; print(torch.__version__, torch.cuda.is_available())"; \
+     df -h /workspace | tail -1'
+```
+Real output (2026-07-10):
+```
+881177e25f9d
+GPU 0: NVIDIA GeForce RTX 4090 (UUID: GPU-44150745-556c-e3f1-55bc-caae92449acf)
+Python 3.12.3
+2.8.0+cu128 True
+mfs#euro-3.runpod.net:9421  839T  315T  524T  38% /workspace     # volume-backed, network FS
+```
+
+### 5. Prove `/workspace` persistence across a stop/restart
+Write a marker to `/workspace` and something to ephemeral `/root`, then `stop`→`start`:
+```bash
+ssh ... -p 17740 root@213.173.108.151 \
+  'echo "devbox persistence $(date -u +%FT%TZ)" > /workspace/marker.txt; echo ephemeral > /root/ephemeral.txt'
+
+runpodctl pod stop  <pod-id>          # wait for desiredStatus EXITED
+runpodctl pod start <pod-id>          # then re-poll ssh info (PORT CHANGES — see gotcha)
+
+ssh ... -p <NEW-port> root@213.173.108.151 \
+  'cat /workspace/marker.txt; test -f /root/ephemeral.txt && echo EXISTS || echo GONE-wiped; hostname'
+```
+Real result (2026-07-10) — the marker survived, `/root` was wiped, the container is new:
+```
+devbox persistence 2026-07-10T20:30:06Z     # /workspace marker — SURVIVED
+GONE-wiped                                    # /root/ephemeral.txt — wiped on stop
+b65f1a073985                                  # hostname changed (was 881177e25f9d) → real restart
+```
+
+### 6. Hand off — the VS Code / Cursor Remote-SSH `~/.ssh/config` block
+Add this to your local `~/.ssh/config`, then in VS Code/Cursor: **Command Palette →
+Remote-SSH: Connect to Host → `runpod-devbox` → Open Folder → `/workspace`**.
 ```
 Host runpod-devbox
-    HostName <pod-public-ip>
+    HostName 213.173.108.151          # from `ssh info` .ip
     User root
-    Port <external-tcp-port>
-    IdentityFile ~/.ssh/id_ed25519
+    Port 17740                        # from `ssh info` .port — RE-READ after every stop/start
+    IdentityFile ~/.runpod/ssh/RunPod-Key-Go   # from `ssh info` .ssh_key.path
 ```
 
-## Runpod gotchas this path must respect
+## Verify it works — VS Code / Cursor Remote-SSH (what was verified headlessly)
+<a id="4-vs-code--cursor-remote-ssh-what-was-verified-headlessly"></a>
+VS Code Remote-SSH is just: (a) run the system `ssh` against a `~/.ssh/config` Host alias, then
+(b) download & launch the VS Code **Server** on the remote for your editor's commit. Both
+mechanical steps were verified without a GUI:
 
-- **Key must exist before boot.** Runpod injects your account public key into
-  `~/.ssh/authorized_keys` **at pod startup**. Add the key *after* the pod is
-  running and it won't be injected — you'd need to redeploy, or paste it via the
-  web terminal (`echo "$PUBLIC_KEY" >> ~/.ssh/authorized_keys`), a manual step.
-  Register the key first (step 1).
-- **Only `/workspace` persists.** The network volume at `/workspace` survives
-  stop/restart; the container/ephemeral disk (everything else — installed apt
-  packages, `/root`, `/tmp`) is **wiped on stop**. Keep code, envs, and data under
-  `/workspace` (`storage.md`).
-- **Stop vs terminate for a box you keep.** `stop` preserves the pod and its
-  `/workspace`; you restart later (you still pay for stopped disk/volume).
-  `terminate`/`remove` **deletes** the pod and its volume disk — use it only when
-  done for good. For a dev box, guard with `--stop-after`, not `--terminate-after`.
-- **TCP port changes on stop/restart.** VS Code Remote-SSH needs **SSH over
-  exposed TCP** (a public IP + external port), not the proxied basic-SSH form.
-  The external TCP port is **reassigned on every stop/restart** — re-read it from
-  `runpodctl ssh info` and update the `~/.ssh/config` `Port` before reconnecting
-  (`networking.md`, `use-ssh.mdx`).
-- **Basic SSH vs TCP SSH.** The proxied `…@ssh.runpod.io` form works for a shell
-  but has no SCP/SFTP and isn't what VS Code Remote-SSH wants — use the
-  `root@<ip> -p <port>` (exposed TCP) form for IDE and file transfer. Official
-  PyTorch templates support SSH over exposed TCP out of the box.
-- **Volume ↔ GPU same DC.** The network volume is DC-locked; place the pod in the
-  volume's DC (`storage.md`).
-- **"Running" ≠ ready.** The VS Code server / SSH daemon may still be starting —
-  verify with a real `ssh <host> 'echo ok'` before handing off; retry briefly if
-  the daemon isn't up yet.
+1. **The Host-alias transport connects** — exactly the `ssh` invocation the extension makes:
+   ```bash
+   ssh -F /tmp/devbox.cfg runpod-devbox 'echo OK on $(hostname); uname -m'
+   # → VS Code Remote-SSH transport OK on host b65f1a073985 / x86_64
+   ```
+2. **The remote arch matches the server build** — pod is `x86_64` → `server-linux-x64`.
+3. **The pod can fetch the exact server tarball for the local editor's commit** (what
+   Remote-SSH downloads on first connect):
+   ```bash
+   COMMIT=$(code --version | sed -n '2p')     # e.g. 4fe60c8b1cdac1c4c174f2fb180d0d758272d713
+   ssh -F /tmp/devbox.cfg runpod-devbox \
+     "curl -sIL -o /dev/null -w '%{http_code} %{url_effective}\n' \
+      https://update.code.visualstudio.com/commit:${COMMIT}/server-linux-x64/stable"
+   # → 200  https://vscode.download.prss.microsoft.com/.../vscode-server-linux-x64.tar.gz
+   ```
 
-## Status: SPEC (not yet live-verified)
+**Verified:** the connection string an agent hands the user is real — the alias resolves, SSH
+authenticates with the account key, the remote is the right arch, and the VS Code Server binary
+is reachable and downloadable from the pod. **Requires a human (GUI):** the actual *Remote-SSH:
+Connect to Host* click in the desktop editor — that Electron action can't be driven headlessly.
+Everything up to that click is proven; the click itself just runs steps 1–3 above.
 
-Unlike golden paths 01–03 (live-verified), this path has **not** been run end to
-end. The flow and gotchas are grounded in `docs/pods/configuration/connect-to-ide.mdx`,
-`use-ssh.mdx`, and `runpodctl/SKILL.md`, but the exact `ssh add-key` flag name,
-whether `ssh info` surfaces the public-IP/external-port TCP form directly (vs the
-Console Connect menu), and the CPU-pod template/image specifics should be
-confirmed on a real run before this is marked covered — see gaps below.
+## Gotchas we hit
+- **The external TCP port is reassigned on every stop/restart — and `ssh info` can hand you a
+  STALE port right after `start`.** Live: the pod came up on port **17740**; after `pod
+  stop`→`start` the *first* `ssh info` still reported 17740 (connections were refused), and a
+  moment later it returned the real new port **12890**. Always re-read `ssh info` after a
+  restart, and if you get connection-refused, poll `ssh info` again for a fresh port before
+  updating your `~/.ssh/config` `Port`. (The public IP happened to stay the same here; on
+  Community Cloud it can change too.)
+- **"Running"/"READY" ≠ sshd is up.** After `start`, `ssh info` reported READY while sshd was
+  still initializing — SSH was connection-refused for ~90s. Retry the real `ssh` (or poll a
+  fresh `ssh info`) rather than trusting the first READY.
+- **Only `/workspace` persists.** Proven live: the network volume at `/workspace` survived
+  stop/start; everything else (`/root`, installed apt packages, `/tmp`) is **wiped on stop**
+  (the hostname even changed). Keep code, envs, and data under `/workspace`.
+- **Key must exist before boot.** Registered account keys are injected at startup; add a key
+  after the pod is running and it won't work until a restart. Register first (Prerequisites).
+- **Use the key path from `ssh info`.** `ssh info` reports `ssh_key.path` + whether it's
+  `in_account`; the live run's working key was runpodctl's own `~/.runpod/ssh/RunPod-Key-Go`.
+  Any account-registered key works, but taking the one `ssh info` names avoids guesswork.
+- **Volume ↔ GPU same DC.** The volume is DC-locked (EU-RO-1 here); the pod must run in that DC.
+
+## Cost & cleanup
+```bash
+runpodctl pod remove <pod-id>                 # deletes the pod (do this for bad-draw pods too)
+runpodctl network-volume delete <vol-id>      # pod must be removed first
+runpodctl pod list && runpodctl network-volume list   # confirm clean
+```
+Live cost: RTX 4090 pod at **$0.69/hr** + 10 GB volume (negligible). For a real dev box you
+keep, `--stop-after` (stopped pods still bill for disk + the volume) instead of
+`--terminate-after`; `remove` + volume `delete` when done for good. A CPU pod is cheaper if you
+don't need the GPU — drop `--gpu-id` and use `--compute-type cpu` (not exercised in this run).
+
+## Skill gaps folded back
+- **`getting-started.md`** already documents key-before-boot + the non-interactive
+  `ssh -o StrictHostKeyChecking=no` pattern — confirmed correct in practice.
+- **`gotchas.md`** "Pod shows Running but ports aren't reachable yet" was extended with the
+  concrete dev-pod finding: after a stop/start, `ssh info` can return a **stale external TCP
+  port** and report READY before sshd is up — re-read `ssh info` and retry.
+- **Confirmed for this doc:** `runpodctl ssh info` surfaces the public-IP + external-TCP-port
+  form directly (no Console needed), including the key path — enough for an agent to build the
+  VS Code Remote-SSH `~/.ssh/config` unaided.

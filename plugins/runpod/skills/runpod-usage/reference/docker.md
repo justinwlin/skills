@@ -63,6 +63,12 @@ torch==2.0.1
 transformers==4.30.2
 ```
 
+> **Version pin gotcha (numpy 2.x):** if you `pip install torch==2.2.x`, also pin
+> `numpy<2`. That torch wheel is built against NumPy 1.x; pip otherwise pulls NumPy
+> 2.x and the image **builds and starts fine but crashes at inference** with
+> `RuntimeError: Numpy is not available`. Testing the container locally (below) catches
+> it before deploy (`gotchas.md`).
+
 For GPU/CUDA workloads, start from a CUDA base and install Python yourself, or
 build on a framework image:
 
@@ -131,6 +137,24 @@ you must register container-registry credentials with Runpod once (Console →
 Settings → Container Registry, then select the credential on the template/endpoint).
 Runpod supports `docker login`-style credentials. Without this, workers fail to
 pull the image.
+
+## Deploy the pushed image as a serverless endpoint
+
+`runpodctl serverless create` takes **`--template-id` or `--hub-id`, not `--image`** —
+so deploying your own image is a **two-step**: register a serverless *template* pointing
+at the tag, then create the endpoint from that template. Use `--compute-type CPU` for a
+CPU-only image to sidestep GPU scarcity, and `--workers-min 0` for scale-to-zero:
+
+```bash
+runpodctl template create --name my-tpl --serverless \
+  --image DOCKER_USER/worker-name:v1.0.0 --container-disk-in-gb 10   # → template id
+runpodctl serverless create --template-id <template-id> --name my-ep \
+  --compute-type CPU --workers-min 0 --workers-max 1                 # → endpoint id
+```
+
+For a **private** image, attach the registry credential to the template (Console →
+Container Registry, or `runpodctl registry create`) so workers can pull it. Full worked
+example: golden path 05 (`golden-paths/05-model-to-endpoint-pipeline.md`).
 
 ## Payload limits
 
