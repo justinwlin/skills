@@ -76,6 +76,10 @@ runpodctl pod create --name whisper-dev-09 \
   --ssh --terminate-after 2026-07-10T23:30:00Z
   # heavy models -> add: --network-volume-id <vol-id> --volume-mount-path /workspace
 runpodctl pod get <pod-id>        # poll until "ssh" block has an ip/port (see 06 bad-draw gotcha)
+# once ready, read ip / port / key from `ssh info` into shell vars (SSH-over-TCP form, golden path 06);
+# every ssh/scp below uses "$IP"/"$PORT"/"$KEY":
+eval "$(runpodctl ssh info <pod-id> | python3 -c \
+  'import sys,json; d=json.load(sys.stdin); print(f"IP={d[\"ip\"]} PORT={d[\"port\"]} KEY={d[\"ssh_key\"][\"path\"]}")')"
 ```
 Verified (2026-07-10): pod `5dsx6eoxk02fod` (RTX 4090, EU-RO-1, $0.69/hr) came up with an
 SSH endpoint within ~2 min. `runpod-torch-v280` resolves to the image
@@ -86,12 +90,18 @@ SSH endpoint within ~2 min. `runpod-torch-v280` resolves to the image
 SSH in, drop the template into `/app`, and run the pod-mode self-test until it
 transcribes. This is the fast inner loop — **no image rebuild per change**:
 ```bash
-# copy the template up (scp), then over SSH:
-cd /app
+# copy the four template files up to /app on the pod (scp uses -P for the port, ssh uses -p):
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" 'mkdir -p /app'
+scp -i "$KEY" -o StrictHostKeyChecking=no -P "$PORT" \
+  template/handler.py template/start.sh template/Dockerfile template/requirements.txt \
+  root@"$IP":/app/
+
+# then install deps + run the pod-mode self-test over SSH (no image rebuild per change):
 # faster-whisper installs clean; runpod needs two extra pip flags on this base (see below)
-pip install --break-system-packages faster-whisper
-pip install --break-system-packages --ignore-installed cryptography runpod
-python3 handler.py            # MODE_TO_RUN defaults to "pod" → runs once on the JFK sample
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" 'cd /app && \
+  pip install --break-system-packages faster-whisper && \
+  pip install --break-system-packages --ignore-installed cryptography runpod && \
+  python3 handler.py'         # MODE_TO_RUN defaults to "pod" → runs once on the JFK sample
 ```
 Verified output on the pod (whisper `base`, cuda `float16`):
 ```text

@@ -63,7 +63,11 @@ runpodctl pod create --name ft-train \
   --ssh --terminate-after <iso8601 well past the run>   # deletes the pod; set past the run
 
 runpodctl pod get <pod-id>                              # poll until it has a runtime
-eval "$(runpodctl ssh info <pod-id> | ...)"             # or read ip/port from `ssh info`
+# once the runtime is up, read ip / port / key from `ssh info` (JSON) into shell vars —
+# the SSH-over-TCP form golden paths 06/07 use. Every ssh/scp below uses "$IP"/"$PORT"/"$KEY":
+eval "$(runpodctl ssh info <pod-id> | python3 -c \
+  'import sys,json; d=json.load(sys.stdin); print(f"IP={d[\"ip\"]} PORT={d[\"port\"]} KEY={d[\"ssh_key\"][\"path\"]}")')"
+# → IP=213.173.108.151 PORT=17740 KEY=/Users/you/.runpod/ssh/RunPod-Key-Go
 ```
 > A brand-new pod can draw a bad machine where the runtime never becomes ready
 > (`ssh info` stays "pod not ready", `runtime: false`). Delete it and create a
@@ -98,13 +102,42 @@ Trainer(model=m, args=TrainingArguments(output_dir=OUT, max_steps=20, per_device
 m.save_pretrained(OUT); tok.save_pretrained(OUT); print("TRAIN_DONE")
 PY
 ```
-For a **real** run (longer than a few minutes), launch it **detached** and log to
-the volume so it survives SSH disconnect, then monitor in separate calls:
+For a **real** run (longer than a few minutes), don't paste the script interactively —
+**write it to the volume as `/workspace/train.py`**, launch it **detached** so it survives
+SSH disconnect, and monitor by tailing the log in separate calls:
 ```bash
-ssh <pod-ssh> 'export HF_HOME=/workspace/hf-cache; \
-  setsid bash -c "python3 /workspace/train.py" > /workspace/train.log 2>&1 < /dev/null &'
-ssh <pod-ssh> 'tail -n 30 /workspace/train.log'        # separate call: loss should trend down
-ssh <pod-ssh> 'nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv'
+# 1. install deps, then write the SAME script (above) to a file on the volume
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" \
+  'export HF_HOME=/workspace/hf-cache; pip install --break-system-packages -q peft datasets'
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" 'cat > /workspace/train.py' <<'PY'
+import torch
+from datasets import load_dataset
+from transformers import (AutoModelForCausalLM, AutoTokenizer, TrainingArguments,
+                          Trainer, DataCollatorForLanguageModeling)
+from peft import LoraConfig, get_peft_model
+BASE="TinyLlama/TinyLlama-1.1B-Chat-v1.0"; OUT="/workspace/outputs/lora-out"
+tok=AutoTokenizer.from_pretrained(BASE); tok.pad_token=tok.eos_token
+ds=load_dataset("mhenrichsen/alpaca_2k_test", split="train[:200]")
+def f(ex): return tok([f"### Instruction:\n{i}\n\n### Response:\n{o}{tok.eos_token}"
+                       for i,o in zip(ex["instruction"],ex["output"])], truncation=True, max_length=256)
+ds=ds.map(f, batched=True, remove_columns=ds.column_names)
+m=get_peft_model(AutoModelForCausalLM.from_pretrained(BASE, torch_dtype=torch.float16),
+    LoraConfig(r=8, lora_alpha=16, target_modules=["q_proj","v_proj"], task_type="CAUSAL_LM"))
+Trainer(model=m, args=TrainingArguments(output_dir=OUT, max_steps=20, per_device_train_batch_size=2,
+    logging_steps=1, save_strategy="no", fp16=True, report_to=[]), train_dataset=ds,
+    data_collator=DataCollatorForLanguageModeling(tok, mlm=False)).train()
+m.save_pretrained(OUT); tok.save_pretrained(OUT); print("TRAIN_DONE")
+PY
+
+# 2. launch detached, logging to the VOLUME (setsid + </dev/null survive SSH disconnect)
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" \
+  'export HF_HOME=/workspace/hf-cache; \
+   setsid bash -c "python3 /workspace/train.py" > /workspace/train.log 2>&1 </dev/null & echo LAUNCHED'
+
+# 3. monitor in SEPARATE calls — loss trends down, final line is TRAIN_DONE
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" 'tail -n 30 /workspace/train.log'
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" \
+  'nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv'
 ```
 > Monitor by **tailing the log**, not by polling a URL — there is no URL. A run
 > that finishes in seconds with no adapter files is a failure, not a success.
@@ -124,7 +157,7 @@ volume.
 ## Verify it works (the actual test + observed output)
 Success = the adapter files exist on the volume:
 ```bash
-ssh <pod-ssh> 'ls -la /workspace/outputs/lora-out'
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" 'ls -la /workspace/outputs/lora-out'
 ```
 **Verified (2026-07-10, as the train phase of golden path 08):** on one RTX 4090
 in EU-RO-1, the whole thing (install `peft`+`datasets` + download TinyLlama + train

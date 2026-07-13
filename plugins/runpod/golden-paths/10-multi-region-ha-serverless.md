@@ -21,6 +21,22 @@ volume). This path's live proof is the **S3-API sync + multi-volume attach + mul
 verification**.
 **Lane(s):** runpodctl ≥ v2.4.0 (volumes + `serverless create --network-volume-ids`) + `aws`/S3 API (sync, see [companion-clis](../skills/companion-clis/SKILL.md#aws-cli)) + GraphQL `saveEndpoint` (fallback for old CLI / REST-only; Console also works) + optionally a CPU/GPU pod (in-DC population, per [07](07-network-volume-handoff.md))
 
+## Prerequisites
+- Shared setup first: [../README.md](README.md#before-you-run-any-path-shared-prerequisites) and
+  [getting-started.md](../skills/runpod-usage/reference/getting-started.md) (auth resolution, SSH,
+  companion-CLI credentials).
+- `RUNPOD_API_KEY` resolvable (runpodctl + REST). Verify: `curl -s -o /dev/null -w '%{http_code}'
+  https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY"` → `200`.
+- `aws` CLI configured with **Runpod S3 API keys** (access key = your Runpod `user_...` id, secret =
+  `rps_...`). These are **Console-only** to create (Settings → S3 API Keys) — an agent can't
+  self-provision them; escalate if they aren't already in `~/.aws/credentials`/env
+  ([companion-clis → AWS CLI](../skills/companion-clis/SKILL.md#aws-cli)). Not needed if you populate
+  volumes via a pod (Method 2/3).
+- `runpodctl` installed + authenticated, **≥ v2.4.0** for headless multi-volume attach
+  (`serverless create --network-volume-ids`). Verify: `runpodctl version`; if behind, install from
+  [GitHub releases](https://github.com/runpod/runpodctl/releases) (REST/GraphQL fallback works on any
+  version — step 4).
+
 ## The problem, precisely
 
 | Volumes attached | Where workers can schedule | Availability |
@@ -160,6 +176,18 @@ that makes or breaks correctness. Here: a tiny `ha-data/` (a `marker.txt` + `dat
 the two volumes were byte-identical (77 B + 28 B on each). ✅
 
 ### 4. Attach all volumes to one endpoint (one per DC)
+
+**The handler image.** The endpoint needs a worker image that reads its data from
+`/runpod-volume/...` and reports which DC/worker served the request (so you can *see* the
+multi-DC spread in step 5). Golden path [19](19-three-region-same-file.md#4-a-tiny-handler-that-serves-the-file--reports-who-answered)
+has the exact reusable handler + 3-line Dockerfile (`python:3.11-slim` + `runpod`, reads
+`/runpod-volume/<dir>`, returns the file contents plus `RUNPOD_DC_ID`/`RUNPOD_VOLUME_ID`/
+`socket.gethostname()`). **Build that image and push it to your own registry**, then use that
+tag below (this path's live run used `rp-gp10:v1`, an equivalent handler):
+```bash
+docker build --platform linux/amd64 -t <your-registry>/rp-gp10:v1 .   # handler+Dockerfile from path 19
+docker push <your-registry>/rp-gp10:v1
+```
 You need a **template** first (`runpodctl serverless create` takes `--template-id`/`--hub-id`,
 never `--image` — same two-step as golden path [05](05-model-to-endpoint-pipeline.md)):
 ```bash

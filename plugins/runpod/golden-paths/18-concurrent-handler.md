@@ -120,6 +120,24 @@ curl -s -X POST https://rest.runpod.io/v1/endpoints \
 # → endpoint id, e.g. <endpoint-id>
 ```
 
+Because `CONCURRENCY` is baked into the template env (not per-request), the serial contrast
+in [Verify](#verify-it-works-the-actual-test--observed-output) needs its **own** template
+(`CONCURRENCY=1`) and endpoint off the **same image** — the one env value is the only
+difference. Create them now so both cases are ready (skip this pair if you only want the
+concurrent proof):
+```bash
+runpodctl template create --name gp18-serial-tpl --serverless \
+  --image <your-registry>/gp18-concurrent:v1 --container-disk-in-gb 10 \
+  --env '{"CONCURRENCY":"1"}'
+# → serial template id, e.g. <template-id-serial>
+
+curl -s -X POST https://rest.runpod.io/v1/endpoints \
+  -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' \
+  -d '{"templateId":"<template-id-serial>","name":"gp18-serial-ep","computeType":"CPU",
+       "workersMin":0,"workersMax":1,"dataCenterIds":["EU-RO-1"]}'
+# → serial endpoint id, e.g. <endpoint-id-serial>
+```
+
 ## Verify it works (the actual test + observed output)
 Fire 4 `/run` jobs at once, each sleeping 5 s, and watch `/health` mid-run. If they overlap,
 wall clock ≈ one job (~5 s) and `/health` shows all 4 in progress on **one** worker. Warm
@@ -141,8 +159,8 @@ handler start spread: 0.000s      ← all four entered the handler at the SAME i
 All four started at the identical timestamp and finished ~5 s later → they ran **together on
 one worker**. Serial execution would have taken ~20 s.
 
-Contrast — the **same image** with `concurrency = 1` (`--env '{"CONCURRENCY":"1"}'`), same 4
-jobs:
+Contrast — fire the **same 4 jobs** at the serial endpoint (`<endpoint-id-serial>`) from step
+3, i.e. the **same image** with `concurrency = 1` (`--env '{"CONCURRENCY":"1"}'`):
 ```
 HEALTH mid-run: {"inProgress":1,"inQueue":3}  {"running":1}   ← one at a time, 3 queued
 WALL CLOCK for 4 jobs (each sleeps 5s): 25.2s

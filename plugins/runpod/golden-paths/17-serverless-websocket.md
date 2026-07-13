@@ -15,7 +15,29 @@ mutation, and connected a real Python `websockets` client to
 prompt on the *same* connection and getting a second stream back. HTTP `/ping`,
 `/generate`, `/stats` on the same endpoint URL all verified, and endpoint auth
 (`Authorization: Bearer`) confirmed enforced (401 without / with a bad token).
-**Lane(s):** custom FastAPI worker image (`python:3.10-slim` + `fastapi`/`uvicorn`/`websockets`) + runpodctl (template) + **GraphQL `saveEndpoint` with `type: "LB"`** (endpoint) + a WebSocket client (`websockets` / `wscat`). Shares the load-balancing mechanism with the direct-REST-API path.
+**Lane(s):** custom FastAPI worker image (`python:3.10-slim` + `fastapi`/`uvicorn`/`websockets`) + runpodctl (template) + **GraphQL `saveEndpoint` with `type: "LB"`** (endpoint) + a WebSocket client (`websockets` / `wscat`). Shares the load-balancing mechanism with golden path [14](14-load-balancing-endpoint.md).
+
+> **Prerequisite reading:** WebSocket serving is a *specialization* of the load-balancing
+> endpoint — understand the substrate first via golden path
+> [14 (load-balancing endpoint)](14-load-balancing-endpoint.md), which documents how an `LB`
+> endpoint is created (`type:"LB"` via GraphQL `saveEndpoint`) and the exposed-port ==
+> `PORT` == `PORT_HEALTH` routing contract. This path reuses all of that and adds only the
+> `@app.websocket` route, the `wss://` scheme, and the raised client `open_timeout`.
+
+## Prerequisites
+- Shared setup first: [../README.md](README.md#before-you-run-any-path-shared-prerequisites) and
+  [getting-started.md](../skills/runpod-usage/reference/getting-started.md) (auth resolution, SSH,
+  companion-CLI credentials).
+- Read golden path [14](14-load-balancing-endpoint.md) first (the LB substrate — see the
+  prerequisite-reading note above).
+- `RUNPOD_API_KEY` resolvable. Verify: `curl -s -o /dev/null -w '%{http_code}'
+  https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY"` → `200`. The same
+  key is the Bearer token on every HTTP request and on the WS upgrade.
+- `docker` running and `docker login` to a registry you can push to (`<your-registry>`, e.g. your
+  Docker Hub user) — you build and push the FastAPI worker image below.
+- `runpodctl` installed + authenticated (creates the template).
+- A **WebSocket client** to verify: Python `websockets` (`pip install websockets`) or
+  `wscat` (`npm i -g wscat`).
 
 ## When to use WebSocket vs `/stream` vs the queue
 
@@ -158,7 +180,8 @@ the `8888/http` default and set `--env '{"PORT":"8888"}'` — the two just have 
 The REST `POST /v1/endpoints` schema has **no endpoint-type field** — it only makes
 queue-based (`QB`) endpoints. Load-balancing endpoints are created with the GraphQL
 `saveEndpoint` mutation and `type: "LB"` (Console: New Endpoint → **Endpoint Type →
-Load Balancer** does the same). `api.runpod.io/graphql` needs a browser-ish `User-Agent`
+Load Balancer** does the same) — the same `LB` creation recipe documented in golden path
+[14](14-load-balancing-endpoint.md). `api.runpod.io/graphql` needs a browser-ish `User-Agent`
 (Cloudflare), and LB endpoints require a **GPU tier** (`gpuIds`, e.g. `AMPERE_16`):
 ```bash
 curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
@@ -260,6 +283,9 @@ and type a JSON line — same token/done frames come back.
   request) hangs with HTTP `000`, and the endpoint "does nothing". Fix by setting both
   `--ports '<p>/http'` **and** `--env '{"PORT":"<p>"}'` to the same value (this path used
   `80`). Use a separate `PORT_HEALTH` only if your health server runs on a different port.
+  This exposed-port == `PORT` == `PORT_HEALTH` contract is the load-balancing substrate's
+  cardinal rule — golden path [14](14-load-balancing-endpoint.md) documents it in full; this
+  path doesn't re-derive it.
 - **WebSocket needs a load-balancing (`LB`) endpoint.** Queue-based endpoints have no
   worker-facing HTTP server and reject custom routes — the gateway answers
   `not allowed for QB API`. There's no `/ws` on `/run`-style endpoints.
@@ -295,10 +321,11 @@ image `<your-registry>/gp17-ws:v1` (~150 MB `python:3.10-slim` + FastAPI) was **
 so this doc references a real, pullable tag; storage-only, costs nothing to keep.
 
 ## Relation to other paths & skill gaps
-- **Load-balancing endpoints** are the shared substrate: this path (WebSocket) and any
-  direct custom-REST-API path both stand up an `LB` endpoint and hit
-  `https://<ep>.api.runpod.ai/<route>`. The only WS-specific bits are the
-  `@app.websocket` route, the `wss://` scheme, and the raised `open_timeout`.
+- **[14 — load-balancing endpoint](14-load-balancing-endpoint.md)** is the shared substrate
+  and the **prerequisite read** for this path: it stands up the same `LB` endpoint
+  (`type:"LB"` via `saveEndpoint`), the exposed-port == `PORT` == `PORT_HEALTH` routing
+  contract, and the `https://<ep>.api.runpod.ai/<route>` addressing. This path (WebSocket)
+  adds only the `@app.websocket` route, the `wss://` scheme, and the raised `open_timeout`.
 - **[12 — serverless streaming (`/stream`)](12-serverless-streaming.md)** is the
   queue-based cousin: server→client chunks for a *single* `/run` job, with the queue's
   durability. Use `/stream` when the client submits once and only listens; use WebSocket

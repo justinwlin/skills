@@ -32,6 +32,10 @@ that DC.
 ## Prerequisites
 - `RUNPOD_API_KEY` resolvable (both runpodctl and flash read it).
 - `runpodctl` + `flash` installed.
+- An SSH key registered **before** creating the pod — Runpod injects registered keys into
+  the pod at startup, so a key added after boot won't work until a restart (`runpodctl ssh
+  list-keys`; see
+  [`../skills/runpod-usage/reference/getting-started.md`](../skills/runpod-usage/reference/getting-started.md)).
 
 ## Walkthrough (verified commands)
 
@@ -50,8 +54,11 @@ runpodctl pod create --name handoff-writer \
   --ssh --terminate-after <iso8601 ~1h out>          # no --ports: nothing to serve
 
 runpodctl pod get <pod-id>                            # poll until it has a runtime
-eval "$(runpodctl ssh info <pod-id> | ...)"           # or read ip/port from `ssh info`
-ssh -o StrictHostKeyChecking=no -p <port> root@<ip> \
+# once the runtime is up, read ip / port / key from `ssh info` (JSON) into shell vars
+# (the SSH-over-TCP form from golden path 06):
+eval "$(runpodctl ssh info <pod-id> | python3 -c \
+  'import sys,json; d=json.load(sys.stdin); print(f"IP={d[\"ip\"]} PORT={d[\"port\"]} KEY={d[\"ssh_key\"][\"path\"]}")')"
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" \
   'echo "handoff ok" > /workspace/hello.txt && cat /workspace/hello.txt'   # verify BEFORE removing
 
 runpodctl pod remove <pod-id>                         # volume (and the file) persist

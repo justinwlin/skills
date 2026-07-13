@@ -63,6 +63,12 @@ proves the disks match by serving the file and comparing the bytes returned from
 
 ## Walkthrough
 
+> **Placeholders below are threaded through the S3 sync loops, the GraphQL attach, the
+> verify, and cleanup.** Capture each id as the command returns it and reuse the matching
+> placeholder throughout: the three volumes as `<vol-ro>`/`<vol-cz>`/`<vol-is>` (per DC),
+> the template as `<template-id>`, the endpoint as `<endpoint-id>`. Same placeholder = same
+> resource everywhere.
+
 ### 1. Create one 10 GB volume per DC
 
 ```bash

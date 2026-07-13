@@ -141,6 +141,10 @@ curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
 `ADA_48_PRO`/`AMPERE_80`/`ADA_80_PRO`). `workersMin: 0` = scale-to-zero. Confirm the type
 stuck: the mutation echoes `"type": "LB"`.
 
+> **See also:** [17 — WebSocket worker](17-serverless-websocket.md) applies this same
+> `type: "LB"` substrate to a WebSocket server — start here to understand the LB base path,
+> then go there for a persistent-connection worker on top of it.
+
 ### 4. Warm the worker, then call your custom routes
 Scale-to-zero means the first hit triggers a cold start. Poll the standard health API
 (worker counts) until a worker is `ready`, then call your paths directly:

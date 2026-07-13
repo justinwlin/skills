@@ -58,7 +58,15 @@ runpodctl pod create --name ft-train \
   --network-volume-id <vol-id> --volume-mount-path /workspace \
   --ssh --terminate-after <iso8601 a few hours out>          # no --ports: training serves nothing
 ```
-Then over SSH (see 07 for the poll-until-ready + non-interactive `ssh` pattern). Two options:
+Poll until the runtime is up, then read ip / port / key from `ssh info` into shell vars — the
+SSH-over-TCP form from golden path [07](07-network-volume-handoff.md)/[06](06-dev-pod.md).
+Every `ssh` below uses `"$IP"`/`"$PORT"`/`"$KEY"`:
+```bash
+runpodctl pod get <pod-id>                             # poll until it has a runtime
+eval "$(runpodctl ssh info <pod-id> | python3 -c \
+  'import sys,json; d=json.load(sys.stdin); print(f"IP={d[\"ip\"]} PORT={d[\"port\"]} KEY={d[\"ssh_key\"][\"path\"]}")')"
+```
+Two options for the training run itself:
 
 **Option A — minimal `peft` + `transformers` Trainer (what the live run used; fastest, most
 robust).** Reuses the template's torch, installs only `peft` + `datasets`, trains ~20 steps
@@ -87,7 +95,36 @@ Trainer(model=m, args=TrainingArguments(output_dir=OUT, max_steps=20, per_device
 m.save_pretrained(OUT); tok.save_pretrained(OUT); print("TRAIN_DONE")
 PY
 ```
-Launch it detached (`setsid … </dev/null &`, log to `/workspace/train.log`) and poll the log.
+For a real (longer) run, don't paste it interactively — **write it to `/workspace/train.py`**,
+launch it **detached** so it survives SSH disconnect, and poll the log (same pattern as golden
+path [04](04-finetune-pod.md)):
+```bash
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" \
+  'export HF_HOME=/workspace/hf-cache; pip install --break-system-packages -q peft datasets'
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" 'cat > /workspace/train.py' <<'PY'
+import torch
+from datasets import load_dataset
+from transformers import (AutoModelForCausalLM, AutoTokenizer, TrainingArguments,
+                          Trainer, DataCollatorForLanguageModeling)
+from peft import LoraConfig, get_peft_model
+BASE="TinyLlama/TinyLlama-1.1B-Chat-v1.0"; OUT="/workspace/outputs/lora-out"
+tok=AutoTokenizer.from_pretrained(BASE); tok.pad_token=tok.eos_token
+ds=load_dataset("mhenrichsen/alpaca_2k_test", split="train[:200]")
+def f(ex): return tok([f"### Instruction:\n{i}\n\n### Response:\n{o}{tok.eos_token}"
+                       for i,o in zip(ex["instruction"],ex["output"])], truncation=True, max_length=256)
+ds=ds.map(f, batched=True, remove_columns=ds.column_names)
+m=get_peft_model(AutoModelForCausalLM.from_pretrained(BASE, torch_dtype=torch.float16),
+    LoraConfig(r=8, lora_alpha=16, target_modules=["q_proj","v_proj"], task_type="CAUSAL_LM"))
+Trainer(model=m, args=TrainingArguments(output_dir=OUT, max_steps=20, per_device_train_batch_size=2,
+    logging_steps=1, save_strategy="no", fp16=True, report_to=[]), train_dataset=ds,
+    data_collator=DataCollatorForLanguageModeling(tok, mlm=False)).train()
+m.save_pretrained(OUT); tok.save_pretrained(OUT); print("TRAIN_DONE")
+PY
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" \
+  'export HF_HOME=/workspace/hf-cache; \
+   setsid bash -c "python3 /workspace/train.py" > /workspace/train.log 2>&1 </dev/null & echo LAUNCHED'
+ssh -i "$KEY" -o StrictHostKeyChecking=no -p "$PORT" root@"$IP" 'tail -n 30 /workspace/train.log'
+```
 
 **Option B — axolotl (richer config-driven flow, for scaling).** Heavier install; pin the
 config's `flash_attention:false` if you skip flash-attn:
