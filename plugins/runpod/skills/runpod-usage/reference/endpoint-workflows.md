@@ -64,6 +64,13 @@ curl -s https://api.runpod.ai/v2/<endpoint-id>/status/<job-id> -H "Authorization
   `input` to get the plain contract).
 - Large inputs: pass a **URL**, not bytes (payload limits `/run` ~10MB, `/runsync`
   ~20MB); base64 rides the payload for small files.
+- **Streaming** (`/stream/<job-id>`): only when the **handler is a generator**
+  (`yield`s instead of `return`s). Submit with `/run`, then GET `/stream/<job-id>`
+  in a loop — each call drains the chunks buffered since the last one and returns
+  `{"status", "stream":[{"output": <yield>}]}`; stop when `status` is `COMPLETED`.
+  Add `"return_aggregate_stream": True` to `runpod.serverless.start(...)` to *also*
+  expose the full list via `/run`/`/runsync`/`/status` (single chunk caps at 1MB).
+  Worked example: golden path 12 (serverless streaming).
 
 ## 4. Verify with a real request — "ready" ≠ working
 

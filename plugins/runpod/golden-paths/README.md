@@ -5,16 +5,11 @@ the Runpod skills — the yardstick for "can it actually do everything agentical
 and a worked reference to copy from.
 
 These are agent-facing scenarios, not marketing demos. An agent — not a human
-clicking the Console — must be able to complete them. **01–08 were run live on a
-real account** (each caught real skill bugs we then fixed) — 04's training phase was
-verified as the train phase of golden path 08. **10** (multi-region high-availability
-serverless — multi-volume + data sync) was **run live 2026-07-10** (S3 sync to two
-volumes, GraphQL multi-volume attach, 16-request burst served across two DCs with
-identical output). **09** (the dual-mode custom-image dev loop) was **run live
-2026-07-10** end to end: a pod-mode `python handler.py` transcribed the JFK sample,
-the built `--platform linux/amd64` image reproduced it on a clean `/app`, and a
-serverless endpoint from that image (`MODE_TO_RUN=serverless`) returned the same
-transcription — pod↔serverless parity confirmed.
+clicking the Console — must be able to complete them. **All 19 paths were run live on
+a real account** (each caught real skill gaps we then folded back), commands and
+outputs are the real ones, and every test resource was torn down after. 04's training
+phase was verified as the train phase of golden path 08; 01–10 were run 2026-07-07→10,
+and 11–19 on 2026-07-13.
 
 ## Layout
 
@@ -44,33 +39,24 @@ observed output) → Gotchas we hit → Cost & cleanup → Skill gaps folded bac
 | 08 | [Fine-tune → serve (LoRA on a pod → serverless)](08-finetune-to-serverless.md) | train → serve loop | runpodctl + peft/axolotl + flash | ✅ live-verified |
 | 09 | [Custom serverless dev loop (iterate in a pod → dual-mode image → serverless)](09-custom-serverless-dev-loop/README.md) | custom image / escape hatch | runpodctl + docker (dual-mode `MODE_TO_RUN`) | ✅ live-verified |
 | 10 | [Multi-region HA serverless (multi-volume + data sync)](10-multi-region-ha-serverless.md) | serverless / availability | runpodctl ≥v2.4.0 (`--network-volume-ids`) + S3 API (aws) | ✅ live-verified |
+| 11 | [Public Endpoints (call a ready hosted model)](11-public-endpoints.md) | serverless / hosted | Runpod Public Endpoint API (native + OpenAI-compatible) | ✅ live-verified |
+| 12 | [Serverless streaming (`/stream`)](12-serverless-streaming.md) | serverless | generator handler + `/stream` | ✅ live-verified |
+| 13 | [Autoscaling tuning](13-autoscaling-tuning.md) | serverless / scaling | runpodctl + scaler config (queue-delay / request-count) | ✅ live-verified |
+| 14 | [Load-balancing endpoint (non-flash)](14-load-balancing-endpoint.md) | serverless / LB | GraphQL `saveEndpoint type:"LB"` + HTTP-server worker | ✅ live-verified |
+| 15 | [Monitor & debug / observability](15-monitor-and-debug.md) | serverless / ops | `/health` + worker logs (v2 / MCP) + config-change events | ✅ live-verified |
+| 16 | [Serverless webhooks](16-serverless-webhooks.md) | serverless | `webhook` field on `/run` (push vs poll) | ✅ live-verified |
+| 17 | [Serverless WebSocket worker](17-serverless-websocket.md) | serverless / LB | `worker-lb-websocket` + `wss://<ep>.api.runpod.ai/ws` | ✅ live-verified |
+| 18 | [Concurrent handler (per-worker concurrency)](18-concurrent-handler.md) | serverless / throughput | async `concurrency_modifier` | ✅ live-verified |
+| 19 | [3-region same-file endpoint](19-three-region-same-file.md) | serverless / availability | 3 volumes + S3 sync + GraphQL multi-volume attach | ✅ live-verified |
 
 > **When a path has two variants, prefer the prebuilt/Hub one** (Variant B for
 > ComfyUI, Variant A for Whisper) unless you need custom code — that's the
 > development loop's "prefer prebuilt over from-scratch" rule in action.
 
-## Planned golden paths (to be done)
-
-Candidate paths not yet written. 📋 = backlog (not started). Each needs the standard
-template + a live run before it flips to ✅.
-
-| # | Planned golden path | What it should prove | Key references |
-| --- | --- | --- | --- |
-| 11 | Public Endpoints — call a ready hosted model | When to use a Runpod-hosted Public Endpoint vs deploying your own; auth + a real request | [docs: public endpoints](https://docs.runpod.io/serverless/endpoints/send-requests#s3-compatible-storage) / serverless overview |
-| 12 | Serverless streaming (`/stream`) | Incremental token/SSE output from a handler via `/stream`; when to use vs `/run`+poll | [docs: send requests](https://docs.runpod.io/serverless/endpoints/send-requests) |
-| 13 | Autoscaling tuning | Queue-delay vs request-count scalers under load; max-workers + idle-timeout + FlashBoot cost/latency trade-offs | [docs: endpoint configurations](https://docs.runpod.io/serverless/endpoints/endpoint-configurations#worker-scaling) |
-| 14 | Load-balancing endpoint (non-flash) | The load-balancing serverless endpoint type via runpodctl/REST (flash LB is already covered) | [docs: load balancing](https://docs.runpod.io/serverless/load-balancing/overview) |
-| 15 | Monitor & debug / observability | `/health` worker counts, worker logs (MCP `stream-worker-logs`), and config-change **alerts** (max-workers / region toggles verified live 2026-07-13) | [docs: troubleshooting](https://docs.runpod.io/serverless/troubleshooting) |
-| 16 | Serverless webhooks | Fire a webhook on job completion (`webhook` in the job request) instead of polling `/status` | [docs: send requests](https://docs.runpod.io/serverless/endpoints/send-requests) |
-| 17 | Serverless WebSocket worker | Bidirectional/streaming worker over WebSocket | [runpod-workers/worker-websocket](https://github.com/runpod-workers/worker-websocket) |
-| 18 | Concurrent handler (per-worker concurrency) | One worker handling many requests at once via an async concurrency-modifier handler — changes when you even need to scale out (pairs with 13) | [docs: concurrent handler](https://docs.runpod.io/serverless/workers/concurrent-handler) |
-| 19 | 3-region same-file endpoint | One endpoint attached to **three** network volumes (3 DCs), the **same file** synced to all three, serving the **same request** identically regardless of region — extends [10](10-multi-region-ha-serverless.md) from 2→3 regions with an actual served payload | [10](10-multi-region-ha-serverless.md), [docs: network volumes](https://docs.runpod.io/storage/network-volumes) |
-
-> Notes: 13 (autoscaling) and 18 (concurrency) are complementary — concurrency raises
-> per-worker throughput, autoscaling adds/removes workers; document them together or
-> cross-linked. 15 partly prototyped on 2026-07-13 (config-change alert events fired live
-> via max-workers + network-region toggles). 19 is the concrete "prove the HA promise with
-> a real served payload across 3 DCs" follow-up to 10.
+> **Complementary pairs:** 13 (autoscaling) + 18 (concurrency) — concurrency raises
+> per-worker throughput, autoscaling adds/removes workers. 14 (load-balancing) + 17
+> (WebSocket) share the `type:"LB"` substrate. 10 + 19 are the 2-region and 3-region
+> multi-volume HA cases.
 
 ## How to use these
 
