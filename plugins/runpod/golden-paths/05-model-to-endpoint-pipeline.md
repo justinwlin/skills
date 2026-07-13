@@ -121,19 +121,19 @@ the template. `--compute-type CPU` dodges GPU scarcity for a CPU model:
 ```bash
 runpodctl template create --name rp-gp05-tpl --serverless \
   --image <your-registry>/rp-gp05:v2 --container-disk-in-gb 10
-# → template id, e.g. 2jfkftkohh
+# → template id, e.g. <template-id>
 
-runpodctl serverless create --template-id 2jfkftkohh \
+runpodctl serverless create --template-id <template-id> \
   --name rp-gp05-ep --compute-type CPU \
   --workers-min 0 --workers-max 1                    # scale-to-zero, ~$0 idle
-# → endpoint id, e.g. t3xno1ddxvx3km
+# → endpoint id, e.g. <endpoint-id>
 ```
 
 ## Verify it works (the actual test + observed output)
 Cold start pulls the 2.3 GB image + inits the worker, which exceeds `/runsync`'s ~60 s
 window — so the **first** call uses `/run` + poll `/status`:
 ```bash
-EP=t3xno1ddxvx3km
+EP=<endpoint-id>
 curl -s "https://api.runpod.ai/v2/$EP/health" -H "Authorization: Bearer $RUNPOD_API_KEY"
 # {"workers":{"initializing":1,"ready":0,...}}  — worker is pulling the image
 
@@ -186,8 +186,8 @@ Green: a `COMPLETED` job returning the model's real prediction. Warm exec ~158 m
 
 ## Cost & cleanup
 ```bash
-runpodctl serverless delete t3xno1ddxvx3km          # the endpoint
-runpodctl template delete 2jfkftkohh                # the template
+runpodctl serverless delete <endpoint-id>          # the endpoint
+runpodctl template delete <template-id>                # the template
 runpodctl serverless list && runpodctl pod list && runpodctl network-volume list  # confirm clean
 ```
 Endpoint is scale-to-zero (`--workers-min 0`), ~$0 idle — but delete it anyway. The pushed

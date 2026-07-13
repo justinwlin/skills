@@ -120,7 +120,7 @@ port and set **both** `PORT` and `PORT_HEALTH` to it:
 runpodctl template create --name gp14-lb-tmpl2 --serverless \
   --image <your-registry>/gp14-lb:v1 --container-disk-in-gb 5 \
   --ports "5000/http" --env '{"PORT":"5000","PORT_HEALTH":"5000"}'
-# → template id, e.g. 1cyszh62iv
+# → template id, e.g. <template-id>
 ```
 
 ### 3. Create the endpoint as `type: "LB"` (GraphQL)
@@ -132,10 +132,10 @@ field (`QB` = queue-based default, `LB` = load balancing). Use a browser `User-A
 curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
   -H 'Content-Type: application/json' -H 'User-Agent: Mozilla/5.0' \
   -d '{"query":"mutation($input:EndpointInput!){saveEndpoint(input:$input){id name type templateId}}",
-       "variables":{"input":{"name":"gp14-lb-ep","templateId":"1cyszh62iv","type":"LB",
+       "variables":{"input":{"name":"gp14-lb-ep","templateId":"<template-id>","type":"LB",
        "gpuIds":"AMPERE_16","scalerType":"QUEUE_DELAY","scalerValue":4,
        "workersMin":0,"workersMax":1,"idleTimeout":5}}}'
-# → {"data":{"saveEndpoint":{"id":"ie59vtopn776j2","type":"LB",...}}}
+# → {"data":{"saveEndpoint":{"id":"<endpoint-id>","type":"LB",...}}}
 ```
 `gpuIds` is required by `saveEndpoint` (tiers: `AMPERE_16`/`AMPERE_24`/`ADA_24`/`AMPERE_48`/
 `ADA_48_PRO`/`AMPERE_80`/`ADA_80_PRO`). `workersMin: 0` = scale-to-zero. Confirm the type
@@ -147,10 +147,10 @@ Scale-to-zero means the first hit triggers a cold start. Poll the standard healt
 
 ```bash
 # trigger + wait for a healthy worker
-curl -s "https://api.runpod.ai/v2/ie59vtopn776j2/health" -H "Authorization: Bearer $RUNPOD_API_KEY"
+curl -s "https://api.runpod.ai/v2/<endpoint-id>/health" -H "Authorization: Bearer $RUNPOD_API_KEY"
 # {"workers":{"idle":1,"ready":1,"running":0,...}}   ← ready:1 means routable
 
-BASE="https://ie59vtopn776j2.api.runpod.ai"           # ← the LB base URL: <ID>.api.runpod.ai
+BASE="https://<endpoint-id>.api.runpod.ai"           # ← the LB base URL: <ID>.api.runpod.ai
 curl -s "$BASE/ping"  -H "Authorization: Bearer $RUNPOD_API_KEY"
 curl -s -X POST "$BASE/echo" -H "Authorization: Bearer $RUNPOD_API_KEY" \
      -H 'Content-Type: application/json' -d '{"prompt":"golden path 14 lb","n":2}'
@@ -204,12 +204,12 @@ the image can stay in the registry.
 curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
   -H 'Content-Type: application/json' -H 'User-Agent: Mozilla/5.0' \
   -d '{"query":"mutation($i:EndpointInput!){saveEndpoint(input:$i){id workersMax}}",
-       "variables":{"i":{"id":"ie59vtopn776j2","name":"gp14-lb-ep","templateId":"1cyszh62iv",
+       "variables":{"i":{"id":"<endpoint-id>","name":"gp14-lb-ep","templateId":"<template-id>",
        "type":"LB","gpuIds":"AMPERE_16","workersMin":0,"workersMax":0}}}'
 curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
   -H 'Content-Type: application/json' -H 'User-Agent: Mozilla/5.0' \
-  -d '{"query":"mutation{deleteEndpoint(id:\"ie59vtopn776j2\")}"}'
-runpodctl template delete 1cyszh62iv
+  -d '{"query":"mutation{deleteEndpoint(id:\"<endpoint-id>\")}"}'
+runpodctl template delete <template-id>
 runpodctl serverless list          # confirm the endpoint is gone
 ```
 Kept image: `<your-registry>/gp14-lb:v1` (the tiny stdlib LB worker above).

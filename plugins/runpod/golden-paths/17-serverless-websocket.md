@@ -149,7 +149,7 @@ even though the worker shows `running`. Align them explicitly:
 ```bash
 runpodctl template create --name gp17-ws-tpl --serverless \
   --image <your-registry>/gp17-ws:v1 --container-disk-in-gb 10 \
-  --ports '80/http' --env '{"PORT":"80"}'            # → template id (e.g. zm01luky1i)
+  --ports '80/http' --env '{"PORT":"80"}'            # → template id (e.g. <template-id>)
 ```
 ✅ Live: template reported `ports ['80/http']`, `env {'PORT': '80'}`. (Equivalently, keep
 the `8888/http` default and set `--env '{"PORT":"8888"}'` — the two just have to match.)
@@ -164,12 +164,12 @@ Load Balancer** does the same). `api.runpod.io/graphql` needs a browser-ish `Use
 curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
   -H 'Content-Type: application/json' -H 'User-Agent: Mozilla/5.0' \
   -d '{"query":"mutation($input:EndpointInput!){saveEndpoint(input:$input){id name type templateId gpuIds}}",
-       "variables":{"input":{"name":"gp17-ws-lb","templateId":"zm01luky1i","type":"LB",
+       "variables":{"input":{"name":"gp17-ws-lb","templateId":"<template-id>","type":"LB",
          "gpuIds":"AMPERE_16","flashBootType":"FLASHBOOT",
          "scalerType":"REQUEST_COUNT","scalerValue":1,"idleTimeout":5,
          "workersMin":1,"workersMax":1}}}'
 ```
-✅ Live: returned `{"id":"pyycpdrorpm1k4","type":"LB","gpuIds":"AMPERE_16", …}`.
+✅ Live: returned `{"id":"<endpoint-id>","type":"LB","gpuIds":"AMPERE_16", …}`.
 > **`workersMin: 1` for a reliable first test.** Runpod's LB does **not** reliably count
 > open WebSocket connections as "active work" for autoscaling — a scale-to-zero endpoint
 > can leave you with `no workers available`/timeouts on the WS upgrade. Keeping one warm
@@ -182,7 +182,7 @@ curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
 the app answers — wait for `/ping` to return **HTTP 200**, not just for the worker to
 exist. Always bound the client timeout (a not-yet-ready LB URL hangs, returning `000`):
 ```bash
-EP=pyycpdrorpm1k4
+EP=<endpoint-id>
 for i in $(seq 1 9); do
   out=$(curl -s --max-time 12 -w '|HTTP%{http_code}' "https://$EP.api.runpod.ai/ping" \
         -H "Authorization: Bearer $RUNPOD_API_KEY")
@@ -196,12 +196,12 @@ the image was already cached on the host).
 
 **HTTP routes on the same endpoint URL:**
 ```
-$ curl -s -X POST https://pyycpdrorpm1k4.api.runpod.ai/generate \
+$ curl -s -X POST https://<endpoint-id>.api.runpod.ai/generate \
     -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' \
     -d '{"prompt":"Hello from golden path 17","max_tokens":40,"temperature":0.5}'
 {"generated_text":"Response to: 'Hello from golden path 17' (tokens=40, temp=0.5, request #1)"}
 
-$ curl -s https://pyycpdrorpm1k4.api.runpod.ai/stats -H "Authorization: Bearer $RUNPOD_API_KEY"
+$ curl -s https://<endpoint-id>.api.runpod.ai/stats -H "Authorization: Bearer $RUNPOD_API_KEY"
 {"total_requests":1,"active_websocket_connections":0}
 ```
 
@@ -210,7 +210,7 @@ token as a connection header, `open_timeout` raised so the connect survives scal
 ```python
 import asyncio, json, websockets
 async def main():
-    url = "wss://pyycpdrorpm1k4.api.runpod.ai/ws"
+    url = "wss://<endpoint-id>.api.runpod.ai/ws"
     headers = {"Authorization": f"Bearer {RUNPOD_API_KEY}"}
     async with websockets.connect(url, additional_headers=headers, open_timeout=60) as ws:
         await ws.send(json.dumps({"prompt": "golden path 17 websocket test", "max_tokens": 20}))
@@ -242,7 +242,7 @@ sent='second message on same socket'  -> recv 8 tokens: Streaming response for: 
 
 **Auth enforced at the gateway:**
 ```
-$ curl -s -w '|HTTP%{http_code}' https://pyycpdrorpm1k4.api.runpod.ai/ping
+$ curl -s -w '|HTTP%{http_code}' https://<endpoint-id>.api.runpod.ai/ping
 {"status":401,"title":"Unauthorized","detail":"no token provided"}|HTTP401
 $ curl -s -w '|HTTP%{http_code}' .../ping -H "Authorization: Bearer BADKEY123"
 {"status":401,"title":"Unauthorized","detail":"invalid api key"}|HTTP401
@@ -284,8 +284,8 @@ and type a JSON line — same token/done frames come back.
 
 ## Cost & cleanup
 ```bash
-runpodctl serverless delete pyycpdrorpm1k4     # the LB endpoint (stops the warm worker's bill)
-runpodctl template delete   zm01luky1i         # the template (delete any earlier attempts too)
+runpodctl serverless delete <endpoint-id>     # the LB endpoint (stops the warm worker's bill)
+runpodctl template delete   <template-id>         # the template (delete any earlier attempts too)
 runpodctl serverless list && runpodctl network-volume list && runpodctl pod list   # confirm clean
 ```
 ✅ All returned `{"deleted": true}` on the live run; no `gp17` endpoints/templates/pods

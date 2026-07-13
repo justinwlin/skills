@@ -111,13 +111,13 @@ the load — the whole point of the proof.
 runpodctl template create --name gp18-concurrent-tpl --serverless \
   --image <your-registry>/gp18-concurrent:v1 --container-disk-in-gb 10 \
   --env '{"CONCURRENCY":"4"}'
-# → template id, e.g. zyip4ksy10
+# → template id, e.g. <template-id>
 
 curl -s -X POST https://rest.runpod.io/v1/endpoints \
   -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' \
-  -d '{"templateId":"zyip4ksy10","name":"gp18-concurrent-ep","computeType":"CPU",
+  -d '{"templateId":"<template-id>","name":"gp18-concurrent-ep","computeType":"CPU",
        "workersMin":0,"workersMax":1,"dataCenterIds":["EU-RO-1"]}'
-# → endpoint id, e.g. nm9aug508wloet
+# → endpoint id, e.g. <endpoint-id>
 ```
 
 ## Verify it works (the actual test + observed output)
@@ -185,10 +185,10 @@ scaler itself in golden path 13 (autoscaling).
 
 ## Cost & cleanup
 ```bash
-runpodctl serverless delete nm9aug508wloet      # concurrent endpoint
-runpodctl serverless delete u349ehw70slaj5      # serial (contrast) endpoint
-runpodctl template delete zyip4ksy10            # concurrent template
-runpodctl template delete ccvgf2u1zj            # serial template
+runpodctl serverless delete <endpoint-id>      # concurrent endpoint
+runpodctl serverless delete <endpoint-id-serial>      # serial (contrast) endpoint
+runpodctl template delete <template-id>            # concurrent template
+runpodctl template delete <template-id-serial>            # serial template
 runpodctl serverless list && runpodctl pod list # confirm clean
 ```
 Both endpoints were scale-to-zero (`workersMin:0`), ~$0 idle, and deleted after the run

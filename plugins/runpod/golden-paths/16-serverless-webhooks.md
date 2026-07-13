@@ -79,17 +79,17 @@ docker build --platform=linux/amd64 -t <your-registry>/gp16-echo:v1 .
 docker push <your-registry>/gp16-echo:v1                                 # public image → no registry auth
 
 runpodctl template create --name gp16-echo-tpl --serverless \
-  --image <your-registry>/gp16-echo:v1 --container-disk-in-gb 5          # → template id, e.g. 7dyy4vms4a
+  --image <your-registry>/gp16-echo:v1 --container-disk-in-gb 5          # → template id, e.g. <template-id>
 
 curl -s -X POST https://rest.runpod.io/v1/endpoints \
   -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' \
-  -d '{"templateId":"7dyy4vms4a","name":"gp16-echo-ep","computeType":"CPU",
-       "workersMin":0,"workersMax":1,"dataCenterIds":["EU-RO-1"]}'     # → endpoint id, e.g. ni8qt1ebp630jj
+  -d '{"templateId":"<template-id>","name":"gp16-echo-ep","computeType":"CPU",
+       "workersMin":0,"workersMax":1,"dataCenterIds":["EU-RO-1"]}'     # → endpoint id, e.g. <endpoint-id>
 ```
 
 ### 3. Submit the job WITH the webhook, then walk away
 ```bash
-EP=ni8qt1ebp630jj
+EP=<endpoint-id>
 curl -s -X POST "https://api.runpod.ai/v2/$EP/run" \
   -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' \
   -d "{\"input\":{\"x\":1},\"webhook\":\"https://webhook.site/$UUID\"}"
@@ -161,8 +161,8 @@ normal retention window).
 
 ## Cost & cleanup
 ```bash
-runpodctl serverless delete ni8qt1ebp630jj          # the endpoint
-runpodctl template delete 7dyy4vms4a                # the template
+runpodctl serverless delete <endpoint-id>          # the endpoint
+runpodctl template delete <template-id>                # the template
 runpodctl serverless list && runpodctl template list && runpodctl pod list   # confirm clean
 ```
 Endpoint is CPU scale-to-zero (`workersMin 0`), ~$0 idle — deleted anyway. The pushed image

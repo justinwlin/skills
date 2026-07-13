@@ -72,9 +72,9 @@ runpodctl network-volume create --name gp19-euris --size 10 --data-center-id EUR
 ```
 ✅ Live output (each id becomes both the S3 bucket name and an attach arg):
 ```json
-{ "dataCenterId": "EU-RO-1",  "id": "o4g1bvs3r4", "name": "gp19-euro",  "size": 10 }
-{ "dataCenterId": "EU-CZ-1",  "id": "srtqoie9xd", "name": "gp19-eucz",  "size": 10 }
-{ "dataCenterId": "EUR-IS-1", "id": "1dtruxeco4", "name": "gp19-euris", "size": 10 }
+{ "dataCenterId": "EU-RO-1",  "id": "<vol-ro>", "name": "gp19-euro",  "size": 10 }
+{ "dataCenterId": "EU-CZ-1",  "id": "<vol-cz>", "name": "gp19-eucz",  "size": 10 }
+{ "dataCenterId": "EUR-IS-1", "id": "<vol-is>", "name": "gp19-euris", "size": 10 }
 ```
 > You pay storage **per volume** — three volumes = 3× the GB bill ($0.07/GB/mo to 1 TB).
 > Size only for the data you replicate.
@@ -89,7 +89,7 @@ mkdir -p gp19-data
 printf 'gp19 shared payload v1\nThe same bytes must be served from every DC.\nchecksum-anchor: 3region-identical-42\n' > gp19-data/payload.txt
 printf 'gp19-3region-marker-v1\n' > gp19-data/marker.txt
 
-for pair in "EU-RO-1:o4g1bvs3r4" "EU-CZ-1:srtqoie9xd" "EUR-IS-1:1dtruxeco4"; do
+for pair in "EU-RO-1:<vol-ro>" "EU-CZ-1:<vol-cz>" "EUR-IS-1:<vol-is>"; do
   DC=${pair%%:*}; VOL=${pair##*:}
   aws s3 sync ./gp19-data/ --profile runpod --region "$DC" \
     --endpoint-url "https://s3api-$(echo "$DC" | tr 'A-Z' 'a-z').runpod.io/" \
@@ -100,7 +100,7 @@ done
 ### 3. Verify the three disks are byte-identical (this is the point)
 
 ```bash
-for pair in "EU-RO-1:o4g1bvs3r4" "EU-CZ-1:srtqoie9xd" "EUR-IS-1:1dtruxeco4"; do
+for pair in "EU-RO-1:<vol-ro>" "EU-CZ-1:<vol-cz>" "EUR-IS-1:<vol-is>"; do
   DC=${pair%%:*}; VOL=${pair##*:}
   echo "=== $DC ($VOL) ==="
   aws s3 ls --profile runpod --region "$DC" \
@@ -109,13 +109,13 @@ done
 ```
 ✅ **Live 2026-07-13** — identical file set + sizes on all three independent disks:
 ```
-=== EU-RO-1 (o4g1bvs3r4) ===
+=== EU-RO-1 (<vol-ro>) ===
 2026-07-13 11:32:49         23 marker.txt
 2026-07-13 11:32:49        106 payload.txt
-=== EU-CZ-1 (srtqoie9xd) ===
+=== EU-CZ-1 (<vol-cz>) ===
 2026-07-13 11:32:51         23 marker.txt
 2026-07-13 11:32:51        106 payload.txt
-=== EUR-IS-1 (1dtruxeco4) ===
+=== EUR-IS-1 (<vol-is>) ===
 2026-07-13 11:32:53         23 marker.txt
 2026-07-13 11:32:53        106 payload.txt
 ```
@@ -174,14 +174,14 @@ field), then attach the **full set of three** with `saveEndpoint`:
 
 ```bash
 runpodctl template create --name gp19-tpl --serverless \
-  --image <your-registry>/gp19-3region:v2 --container-disk-in-gb 10     # → template id ypxfxs671s
+  --image <your-registry>/gp19-3region:v2 --container-disk-in-gb 10     # → template id <template-id>
 
 # create with one volume + all three DCs
 curl -s -X POST https://rest.runpod.io/v1/endpoints \
   -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' \
-  -d '{"templateId":"ypxfxs671s","name":"gp19-3region",
-       "networkVolumeId":"o4g1bvs3r4","dataCenterIds":["EU-RO-1","EU-CZ-1","EUR-IS-1"],
-       "workersMin":0,"workersMax":12}'                              # → endpoint id b4m0mqos0nqn1x
+  -d '{"templateId":"<template-id>","name":"gp19-3region",
+       "networkVolumeId":"<vol-ro>","dataCenterIds":["EU-RO-1","EU-CZ-1","EUR-IS-1"],
+       "workersMin":0,"workersMax":12}'                              # → endpoint id <endpoint-id>
 ```
 Now attach all three. `networkVolumeIds` takes **objects**, and `api.runpod.io/graphql`
 needs a browser-ish `User-Agent` (Cloudflare returns 403/1010 otherwise). To pin the
@@ -193,21 +193,21 @@ endpoint to **CPU**, pass `instanceIds` (a CPU flavor, e.g. `cpu3c-2-4`) and an 
 curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
   -H 'Content-Type: application/json' -H 'User-Agent: Mozilla/5.0' \
   -d '{"query":"mutation($input:EndpointInput!){saveEndpoint(input:$input){id name computeType instanceIds}}",
-       "variables":{"input":{"id":"b4m0mqos0nqn1x","name":"gp19-3region","templateId":"ypxfxs671s",
+       "variables":{"input":{"id":"<endpoint-id>","name":"gp19-3region","templateId":"<template-id>",
          "instanceIds":["cpu3c-2-4"],"gpuIds":"",
          "dataCenterIds":["EU-RO-1","EU-CZ-1","EUR-IS-1"],
-         "networkVolumeIds":[{"networkVolumeId":"o4g1bvs3r4"},
-                             {"networkVolumeId":"srtqoie9xd"},
-                             {"networkVolumeId":"1dtruxeco4"}],
+         "networkVolumeIds":[{"networkVolumeId":"<vol-ro>"},
+                             {"networkVolumeId":"<vol-cz>"},
+                             {"networkVolumeId":"<vol-is>"}],
          "workersMin":0,"workersMax":12,"scalerType":"QUEUE_DELAY","scalerValue":1,"idleTimeout":5}}}'
 ```
 ✅ **Live 2026-07-13** — returned `"computeType":"CPU","instanceIds":["cpu3c-2-4"]`, and
-`GET /v1/endpoints/b4m0mqos0nqn1x` confirmed all three attached:
-`"networkVolumeIds":["1dtruxeco4","o4g1bvs3r4","srtqoie9xd"]`.
+`GET /v1/endpoints/<endpoint-id>` confirmed all three attached:
+`"networkVolumeIds":["<vol-is>","<vol-ro>","<vol-cz>"]`.
 
 > On **runpodctl ≥ v2.4.0** you can skip the GraphQL step entirely:
-> `runpodctl serverless create --template-id ypxfxs671s --compute-type CPU
-> --network-volume-ids o4g1bvs3r4,srtqoie9xd,1dtruxeco4 --data-center-ids
+> `runpodctl serverless create --template-id <template-id> --compute-type CPU
+> --network-volume-ids <vol-ro>,<vol-cz>,<vol-is> --data-center-ids
 > EU-RO-1,EU-CZ-1,EUR-IS-1 --workers-min 0 --workers-max 12`. Check `runpodctl version`.
 
 ### 6. Verify — one endpoint, three DCs, one payload ✅ live 2026-07-13
@@ -227,9 +227,9 @@ DISTINCT payloads: 1   ('gp19 shared payload v1 … checksum-anchor: 3region-ide
 Ten distinct workers answered, each reading its **co-located** volume — the same
 `/runpod-volume/gp19-data` on every worker resolves to *that worker's DC's* disk:
 ```
-DC=EU-CZ-1   VOL=srtqoie9xd   (gp19-eucz)   × 5 workers
-DC=EU-RO-1   VOL=o4g1bvs3r4   (gp19-euro)   × 4 workers
-DC=EUR-IS-1  VOL=1dtruxeco4   (gp19-euris)  × 1 worker
+DC=EU-CZ-1   VOL=<vol-cz>   (gp19-eucz)   × 5 workers
+DC=EU-RO-1   VOL=<vol-ro>   (gp19-euro)   × 4 workers
+DC=EUR-IS-1  VOL=<vol-is>   (gp19-euris)  × 1 worker
 ```
 This is the whole thesis proven at three-region scale: **every worker landed in one of
 three DCs and mounted that DC's own independent volume** (`RUNPOD_VOLUME_ID` = the
@@ -282,11 +282,11 @@ now across three disks:
 ## Cost & cleanup
 
 ```bash
-runpodctl serverless delete b4m0mqos0nqn1x        # endpoint (drops the 3-volume attach)
-runpodctl template delete   ypxfxs671s            # template(s)
-runpodctl network-volume delete o4g1bvs3r4        # gp19-euro  (EU-RO-1)  — billed separately
-runpodctl network-volume delete srtqoie9xd        # gp19-eucz  (EU-CZ-1)
-runpodctl network-volume delete 1dtruxeco4        # gp19-euris (EUR-IS-1)
+runpodctl serverless delete <endpoint-id>        # endpoint (drops the 3-volume attach)
+runpodctl template delete   <template-id>            # template(s)
+runpodctl network-volume delete <vol-ro>        # gp19-euro  (EU-RO-1)  — billed separately
+runpodctl network-volume delete <vol-cz>        # gp19-eucz  (EU-CZ-1)
+runpodctl network-volume delete <vol-is>        # gp19-euris (EUR-IS-1)
 runpodctl serverless list && runpodctl network-volume list && runpodctl pod list   # confirm clean
 ```
 ✅ All deletions returned `{"deleted": true}` on the live run; lists came back with only

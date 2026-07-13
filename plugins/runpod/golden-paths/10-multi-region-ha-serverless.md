@@ -73,7 +73,7 @@ the volume id**. Sync the *same source directory* to *each* volume:
 ```bash
 # Same local source → every per-DC volume. --region is the DC id; the endpoint host is
 # the DC id lower-cased (DNS is case-insensitive, so upper-case also resolves).
-for pair in "EU-RO-1:d4qw56wbx9" "EU-CZ-1:xeb2u0ejfo"; do   # DC:volume-id
+for pair in "EU-RO-1:<vol-ro>" "EU-CZ-1:<vol-cz>"; do   # DC:volume-id
   DC=${pair%%:*}; VOL=${pair##*:}
   aws s3 sync ./ha-data/ \
     --region "$DC" \
@@ -84,10 +84,10 @@ done
 ✅ **Live 2026-07-10** — `aws s3 ls` on *both* volumes returned the identical file set +
 sizes (the whole point — proves the two independent disks now match):
 ```
-$ aws s3 ls --region EU-RO-1 --endpoint-url https://s3api-eu-ro-1.runpod.io/ s3://d4qw56wbx9/ha-data/
+$ aws s3 ls --region EU-RO-1 --endpoint-url https://s3api-eu-ro-1.runpod.io/ s3://<vol-ro>/ha-data/
 2026-07-10 17:22:30         77 data.txt
 2026-07-10 17:22:30         28 marker.txt
-$ aws s3 ls --region EU-CZ-1 --endpoint-url https://s3api-eu-cz-1.runpod.io/ s3://xeb2u0ejfo/ha-data/
+$ aws s3 ls --region EU-CZ-1 --endpoint-url https://s3api-eu-cz-1.runpod.io/ s3://<vol-cz>/ha-data/
 2026-07-10 17:22:31         77 data.txt
 2026-07-10 17:22:31         28 marker.txt
 ```
@@ -146,8 +146,8 @@ runpodctl network-volume create --name ha-b --size 10 --data-center-id EU-CZ-1
 ```
 ✅ Live output (each returns its id — these become the S3 bucket names and the attach args):
 ```json
-{ "dataCenterId": "EU-RO-1", "id": "d4qw56wbx9", "name": "ha-a", "size": 10 }
-{ "dataCenterId": "EU-CZ-1", "id": "xeb2u0ejfo", "name": "ha-b", "size": 10 }
+{ "dataCenterId": "EU-RO-1", "id": "<vol-ro>", "name": "ha-a", "size": 10 }
+{ "dataCenterId": "EU-CZ-1", "id": "<vol-cz>", "name": "ha-b", "size": 10 }
 ```
 Note: you pay storage **per volume** — N volumes = N× the GB bill. Size only for the
 data you replicate. Flags are exactly `--name`, `--size` (1-4000 GB), `--data-center-id`
@@ -164,17 +164,17 @@ You need a **template** first (`runpodctl serverless create` takes `--template-i
 never `--image` — same two-step as golden path [05](05-model-to-endpoint-pipeline.md)):
 ```bash
 runpodctl template create --name rp-gp10-tpl --serverless \
-  --image <your-registry>/rp-gp10:v1 --container-disk-in-gb 10   # → template id p8b3v1prf1
+  --image <your-registry>/rp-gp10:v1 --container-disk-in-gb 10   # → template id <template-id>
 ```
 **Preferred: `runpodctl serverless create --network-volume-ids` (needs runpodctl ≥ v2.4.0).**
 The CLI passes the whole set in one call:
 ```bash
-runpodctl serverless create --template-id p8b3v1prf1 --compute-type CPU \
-  --network-volume-ids d4qw56wbx9,xeb2u0ejfo \
+runpodctl serverless create --template-id <template-id> --compute-type CPU \
+  --network-volume-ids <vol-ro>,<vol-cz> \
   --data-center-ids EU-RO-1,EU-CZ-1 --workers-min 0 --workers-max 1
 ```
 ✅ **Live 2026-07-10** (runpodctl built from `main`) — endpoint created, then
-`GET /v1/endpoints/<id>` confirmed `"networkVolumeIds":["iw4wmya3ov","o1gwxlxrva"]` (both
+`GET /v1/endpoints/<id>` confirmed `"networkVolumeIds":["<vol-a>","<vol-b>"]` (both
 attached). Under the hood runpodctl calls the GraphQL `saveEndpoint` mutation with the ids
 as **objects** — see the fallback below for what that looks like.
 
@@ -189,15 +189,15 @@ exactly what runpodctl does internally; `networkVolumeIds` takes **objects**, no
 # create with ONE volume first (REST accepts the singular field), then attach the set:
 curl -s -X POST https://rest.runpod.io/v1/endpoints \
   -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' \
-  -d '{"templateId":"p8b3v1prf1","name":"rp-gp10-ha","computeType":"CPU",
-       "networkVolumeId":"d4qw56wbx9","dataCenterIds":["EU-RO-1","EU-CZ-1"],"workersMin":0,"workersMax":4}'
+  -d '{"templateId":"<template-id>","name":"rp-gp10-ha","computeType":"CPU",
+       "networkVolumeId":"<vol-ro>","dataCenterIds":["EU-RO-1","EU-CZ-1"],"workersMin":0,"workersMax":4}'
 # → endpoint id; then (NOTE the User-Agent — api.runpod.io returns 403/1010 without a browser-ish UA):
 curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
   -H 'Content-Type: application/json' -H 'User-Agent: Mozilla/5.0' \
   -d '{"query":"mutation($input:EndpointInput!){saveEndpoint(input:$input){id name}}",
-       "variables":{"input":{"id":"<endpoint-id>","name":"rp-gp10-ha","templateId":"p8b3v1prf1",
+       "variables":{"input":{"id":"<endpoint-id>","name":"rp-gp10-ha","templateId":"<template-id>",
          "dataCenterIds":["EU-RO-1","EU-CZ-1"],
-         "networkVolumeIds":[{"networkVolumeId":"d4qw56wbx9"},{"networkVolumeId":"xeb2u0ejfo"}],
+         "networkVolumeIds":[{"networkVolumeId":"<vol-ro>"},{"networkVolumeId":"<vol-cz>"}],
          "workersMin":0,"workersMax":4,"scalerType":"QUEUE_DELAY","scalerValue":1,"idleTimeout":10}}}'
 ```
 ✅ Also verified live 2026-07-10 (this is the path used before the CLI was rebuilt).
@@ -219,9 +219,9 @@ DISTINCT data:     1   ('shared-model-payload: checksum-anchor 42 …')
 ```
 Per-worker identity (from the handler returning `socket.gethostname()` + `RUNPOD_*` env):
 ```
-worker 4100bc76ce48: RUNPOD_DC_ID=EU-CZ-1  RUNPOD_VOLUME_ID=xeb2u0ejfo  (ha-b)
-worker ca7909f9bdbe: RUNPOD_DC_ID=EU-RO-1  RUNPOD_VOLUME_ID=d4qw56wbx9  (ha-a)
-worker b1b4e4d2f0f2: RUNPOD_DC_ID=EU-RO-1  RUNPOD_VOLUME_ID=d4qw56wbx9  (ha-a)
+worker 4100bc76ce48: RUNPOD_DC_ID=EU-CZ-1  RUNPOD_VOLUME_ID=<vol-cz>  (ha-b)
+worker ca7909f9bdbe: RUNPOD_DC_ID=EU-RO-1  RUNPOD_VOLUME_ID=<vol-ro>  (ha-a)
+worker b1b4e4d2f0f2: RUNPOD_DC_ID=EU-RO-1  RUNPOD_VOLUME_ID=<vol-ro>  (ha-a)
 ```
 This is the whole thesis, proven: **each worker landed in a different DC and mounted
 that DC's own volume** (`RUNPOD_VOLUME_ID` = the co-located volume, `/runpod-volume`
@@ -263,10 +263,10 @@ same synced data. `RUNPOD_DC_ID` is the clean per-request DC identifier; poll wi
 
 ## Cost & cleanup
 ```bash
-runpodctl serverless delete koh9bjdv1v98im     # the endpoint (deletes the multi-volume attach)
-runpodctl template delete   p8b3v1prf1         # the template
-runpodctl network-volume delete d4qw56wbx9     # ha-a (EU-RO-1) — billed separately
-runpodctl network-volume delete xeb2u0ejfo     # ha-b (EU-CZ-1)
+runpodctl serverless delete <endpoint-id>     # the endpoint (deletes the multi-volume attach)
+runpodctl template delete   <template-id>         # the template
+runpodctl network-volume delete <vol-ro>     # ha-a (EU-RO-1) — billed separately
+runpodctl network-volume delete <vol-cz>     # ha-b (EU-CZ-1)
 runpodctl serverless list && runpodctl network-volume list && runpodctl pod list   # confirm clean
 ```
 ✅ All four `{"deleted": true}` on the live run; lists came back with only pre-existing

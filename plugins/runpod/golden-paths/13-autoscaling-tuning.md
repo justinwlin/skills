@@ -97,22 +97,22 @@ docker push <your-registry>/gp13-scale:v1
 Two-step (template → endpoint), exactly like [05](05-model-to-endpoint-pipeline.md):
 ```bash
 runpodctl template create --name gp13-tpl --serverless \
-  --image <your-registry>/gp13-scale:v1 --container-disk-in-gb 10        # → template id rji3f8cw6o
+  --image <your-registry>/gp13-scale:v1 --container-disk-in-gb 10        # → template id <template-id>
 
-runpodctl serverless create --template-id rji3f8cw6o --name gp13-reqcount \
+runpodctl serverless create --template-id <template-id> --name gp13-reqcount \
   --compute-type CPU --workers-min 0 --workers-max 3 \
   --scale-by requests --scale-threshold 1 --idle-timeout 5 \
-  --data-center-ids EU-RO-1                                            # → endpoint id rdju6z9zdf3fua
+  --data-center-ids EU-RO-1                                            # → endpoint id <endpoint-id>
 ```
 ✅ The create response echoes the stored config — proving the flag→field mapping:
 ```json
-{ "id": "rdju6z9zdf3fua", "scalerType": "REQUEST_COUNT", "scalerValue": 1,
+{ "id": "<endpoint-id>", "scalerType": "REQUEST_COUNT", "scalerValue": 1,
   "idleTimeout": 5, "workersMax": 3, "flashboot": true }
 ```
 
 ### 3. Fire a burst and WATCH `/health`
 ```bash
-EP=rdju6z9zdf3fua
+EP=<endpoint-id>
 for i in $(seq 1 6); do
   curl -s "https://api.runpod.ai/v2/$EP/run" -H "Authorization: Bearer $RUNPOD_API_KEY" \
     -H "Content-Type: application/json" -d '{"input":{"sleep":8}}' >/dev/null
@@ -193,8 +193,8 @@ A warm `/runsync` confirms jobs complete cleanly throughout:
 
 ## Cost & cleanup
 ```bash
-runpodctl serverless delete rdju6z9zdf3fua        # the endpoint
-runpodctl template   delete rji3f8cw6o            # the template
+runpodctl serverless delete <endpoint-id>        # the endpoint
+runpodctl template   delete <template-id>            # the template
 runpodctl serverless list && runpodctl network-volume list && runpodctl pod list  # confirm clean
 ```
 ✅ On the live run the endpoint + template were deleted and the lists came back with no
