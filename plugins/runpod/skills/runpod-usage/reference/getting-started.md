@@ -34,8 +34,11 @@ it resolvable for the lane:
 | **runpod-mcp (local)** | `RUNPOD_API_KEY` env in the MCP client config | Forwarded to the API. |
 
 Agent rule: **`export RUNPOD_API_KEY=...` is the universal non-interactive path**
-(runpodctl and flash both honor it). Avoid `runpodctl doctor` in automation — it
-prompts.
+(runpodctl and flash both honor it) — the closest thing to one-step setup. The
+**hosted MCP is the exception**: it uses its own `/mcp` "Sign in with Runpod" OAuth
+(or pass the same key as an `Authorization: Bearer` header) — authing the MCP does
+not set up the CLIs, and the export does not authenticate the hosted MCP's OAuth.
+Avoid `runpodctl doctor` in automation — it prompts.
 
 ## SSH (only needed for pods you exec into)
 

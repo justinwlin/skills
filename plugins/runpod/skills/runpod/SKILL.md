@@ -27,28 +27,39 @@ the right lane and hands off. Read the matching skill's `SKILL.md` next.
 | **companion-clis** | **Prerequisite artifacts**: download a model (`hf`), build/push an image (`docker`), repos/releases (`gh`), move data to a network volume over S3 (`aws`). |
 | **runpod-usage** | **Understand** how Runpod works before acting — pods vs serverless, building a container, storage, GPU selection, gotchas. Knowledge only. |
 
-## First run — is a control plane connected?
+## First run — get a control plane set up (don't just limp on a fallback)
 
-Infra tasks (create/list/manage pods, endpoints, jobs, volumes) need **one** control-plane
-lane working: the **Runpod MCP server** (structured tools) or **runpodctl** (CLI). Before
-acting on an infra request, check what's actually available — and if nothing is, **guide the
-user to set it up rather than failing or guessing**:
+Infra tasks (create/list/manage pods, endpoints, jobs, volumes) need a working control-plane
+lane: the **Runpod MCP server** (structured tools) or **runpodctl** (CLI). On the first infra
+request, check what's actually connected and **proactively help the user get set up** — use a
+working lane so you're never blocked, but **don't quietly limp along on a partial fallback when a
+quick one-time setup step would give them the right lane.** Push them to get properly set up
+where it makes sense; keep trying whatever works in the meantime.
 
-1. **MCP tools present?** If `create-pod` / `list-endpoints` / … are callable this session →
-   use **runpod-mcp**.
-2. **MCP installed but not authenticated?** Common right after installing this plugin — it
-   bundles the hosted server, but the tools stay inert until sign-in. Guide the user:
-   **Claude Code** → `/mcp` → `runpod` → *"Sign in with Runpod"*, then retry; **Codex** →
-   `codex mcp add runpod --transport http https://mcp.getrunpod.io/`.
-3. **No MCP, but `runpodctl` is installed and `RUNPOD_API_KEY` resolves?** (`runpodctl user`
-   confirms) → use **runpodctl**. The universal fallback.
-4. **Neither ready?** Don't flail — **stop and guide setup**, pick one:
-   - MCP (no key on disk): `npx @runpod/mcp-server@latest add` then authenticate.
-   - CLI: `curl -sSL https://cli.runpod.net | bash`, then `export RUNPOD_API_KEY=…` (or
-     `runpodctl doctor`).
+**One step covers most lanes.** `export RUNPOD_API_KEY=…` (from
+https://runpod.io/console/user/settings) makes **runpodctl, flash, and the local-stdio MCP** all
+work at once. The **hosted MCP is the one exception** — it needs its own **`/mcp` → "Sign in
+with Runpod"** (or pass that same key as an `Authorization: Bearer` header). So: **one key for
+the CLIs, one sign-in for the hosted MCP** — authing the MCP does *not* by itself set up the CLIs,
+and vice-versa. Recommend the single `export` first; it's the closest thing to one-step setup.
 
-Full setup: **runpod-mcp** (Connect) and `runpod-usage/reference/getting-started.md`. Once one
-lane answers, continue with the routing below.
+What to do:
+1. **A lane is already connected** — MCP tools callable, or `runpodctl user` works → use it.
+2. **MCP installed but unauthenticated** — common right after installing this plugin (it bundles
+   the hosted server, but the tools stay inert until sign-in). **Don't silently ignore it and
+   drop to a fallback** — tell the user to authenticate: Claude Code `/mcp` → `runpod` → *Sign in
+   with Runpod*; Codex `codex mcp add runpod --transport http https://mcp.getrunpod.io/`. It's the
+   nicer lane once live.
+3. **Nothing connected** — **stop and set them up** (don't guess or fake a result). Recommend the
+   one key first (`export RUNPOD_API_KEY=…` → unlocks runpodctl + flash), then the hosted-MCP
+   sign-in if they want structured tools. Or install a lane: `curl -sSL https://cli.runpod.net |
+   bash` (runpodctl) / `npx @runpod/mcp-server@latest add` (MCP).
+4. **Only a fallback lane is available** — e.g. runpodctl works but they wanted MCP (or vice-
+   versa). **Use what works to make progress, and offer the one-time setup** that gives them the
+   intended lane, so it's smoother next time. Progress now, but nudge toward the proper setup.
+
+Full setup: **runpod-mcp** (Connect) and `runpod-usage/reference/getting-started.md`. Get one lane
+green, then continue with the routing below.
 
 ## How to route
 
