@@ -5,7 +5,7 @@ callback URL and have Runpod **POST the finished job payload to you**, so you ne
 `/status`. This is the push alternative to golden path polling: fire-and-forget the job,
 let the result come to your endpoint.
 **Status:** ✅ COVERED — live-verified 2026-07-13 end to end. Deployed a tiny CPU
-scale-to-zero echo endpoint (`justinrunpod/gp16-echo:v1`), submitted `/run` with a
+scale-to-zero echo endpoint (`<your-registry>/gp16-echo:v1`), submitted `/run` with a
 `webhook` URL, and captured the **real callback** Runpod delivered to a
 [webhook.site](https://webhook.site) receiver. Also proved the **retry-on-failure**
 behavior live: a receiver returning `500` got **3 delivery attempts** (1 initial + 2
@@ -75,11 +75,11 @@ COPY handler.py .
 CMD ["python", "-u", "/handler.py"]
 ```
 ```bash
-docker build --platform=linux/amd64 -t justinrunpod/gp16-echo:v1 .
-docker push justinrunpod/gp16-echo:v1                                 # public image → no registry auth
+docker build --platform=linux/amd64 -t <your-registry>/gp16-echo:v1 .
+docker push <your-registry>/gp16-echo:v1                                 # public image → no registry auth
 
 runpodctl template create --name gp16-echo-tpl --serverless \
-  --image justinrunpod/gp16-echo:v1 --container-disk-in-gb 5          # → template id, e.g. 7dyy4vms4a
+  --image <your-registry>/gp16-echo:v1 --container-disk-in-gb 5          # → template id, e.g. 7dyy4vms4a
 
 curl -s -X POST https://rest.runpod.io/v1/endpoints \
   -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' \
@@ -166,7 +166,7 @@ runpodctl template delete 7dyy4vms4a                # the template
 runpodctl serverless list && runpodctl template list && runpodctl pod list   # confirm clean
 ```
 Endpoint is CPU scale-to-zero (`workersMin 0`), ~$0 idle — deleted anyway. The pushed image
-(`justinrunpod/gp16-echo:v1`, public on Docker Hub) was left in place so this doc references
+(`<your-registry>/gp16-echo:v1`, public on Docker Hub) was left in place so this doc references
 a real, pullable tag; it costs nothing. No pod or volume is created by this path.
 webhook.site tokens expire on their own (7 days) — no cleanup needed.
 

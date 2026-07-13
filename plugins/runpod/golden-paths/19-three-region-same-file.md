@@ -16,7 +16,7 @@ endpoint** attached to **all three** volumes via the GraphQL `saveEndpoint` path
 sent a **32-request concurrent burst**: **32/32 `COMPLETED`, served by 10 workers spread
 across all three DCs** (EU-RO-1 ×4, EU-CZ-1 ×5, EUR-IS-1 ×1), each worker reading its
 **co-located** volume, and **every response byte-identical** (1 distinct marker + 1
-distinct payload across all 32). Image `justinrunpod/gp19-3region:v2` (`python:3.11-slim`
+distinct payload across all 32). Image `<your-registry>/gp19-3region:v2` (`python:3.11-slim`
 + `runpod`). All three volumes + endpoint + templates were deleted afterward.
 **Lane(s):** `runpodctl` (volumes) + `aws`/S3 API (sync, see
 [companion-clis → AWS CLI](../skills/companion-clis/SKILL.md#aws-cli)) + GraphQL
@@ -57,7 +57,7 @@ proves the disks match by serving the file and comparing the bytes returned from
   `user_...`, secret = `rps_...`). These are **Console-only** to create (Settings → S3 API
   Keys) — an agent can't self-provision them; see
   [companion-clis → AWS CLI](../skills/companion-clis/SKILL.md#aws-cli).
-- Docker + a registry (here `justinrunpod`). Build `--platform linux/amd64`.
+- Docker + a registry (here `<your-registry>`). Build `--platform linux/amd64`.
 - Three DCs that all expose the **S3 API** (so sync needs no compute):
   **EU-RO-1, EU-CZ-1, EUR-IS-1** are all supported.
 
@@ -163,8 +163,8 @@ COPY handler.py .
 CMD ["python", "-u", "handler.py"]
 ```
 ```bash
-docker build --platform linux/amd64 -t justinrunpod/gp19-3region:v2 .
-docker push justinrunpod/gp19-3region:v2
+docker build --platform linux/amd64 -t <your-registry>/gp19-3region:v2 .
+docker push <your-registry>/gp19-3region:v2
 ```
 
 ### 5. Create the CPU endpoint and attach all three volumes (GraphQL `saveEndpoint`)
@@ -174,7 +174,7 @@ field), then attach the **full set of three** with `saveEndpoint`:
 
 ```bash
 runpodctl template create --name gp19-tpl --serverless \
-  --image justinrunpod/gp19-3region:v2 --container-disk-in-gb 10     # → template id ypxfxs671s
+  --image <your-registry>/gp19-3region:v2 --container-disk-in-gb 10     # → template id ypxfxs671s
 
 # create with one volume + all three DCs
 curl -s -X POST https://rest.runpod.io/v1/endpoints \
@@ -292,7 +292,7 @@ runpodctl serverless list && runpodctl network-volume list && runpodctl pod list
 ✅ All deletions returned `{"deleted": true}` on the live run; lists came back with only
 pre-existing resources. Scale-to-zero (`workersMin 0`) + tiny CPU workers kept the
 compute bill near $0; the three 10 GB volumes were the only meaningful cost and were
-deleted immediately. The pushed image `justinrunpod/gp19-3region:v2` (a ~150 MB
+deleted immediately. The pushed image `<your-registry>/gp19-3region:v2` (a ~150 MB
 `python:3.11-slim` + `runpod` handler) was **left public** so this doc references a real,
 pullable tag; it costs nothing.
 

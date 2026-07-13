@@ -8,7 +8,7 @@ ordering rule (**artifacts before infra**) and credential boundaries a single la
 hits.
 **Status:** COVERED — live-verified 2026-07-10 end to end. Baked
 `distilbert-base-uncased-finetuned-sst-2-english` into a CPU image
-(`justinrunpod/rp-gp05:v2`), pushed it public, created a **CPU** serverless endpoint from a
+(`<your-registry>/rp-gp05:v2`), pushed it public, created a **CPU** serverless endpoint from a
 runpodctl template, and got a `COMPLETED` job with real output. Cold call: ~73 s queue
 (image pull + worker init) + 0.86 s exec; warm `/runsync`: ~0.16 s exec.
 **Lane(s):** docker (build/push) + runpodctl (template + serverless create) + Runpod REST (`/run`, `/status`, `/runsync`, `/health`)
@@ -28,16 +28,16 @@ bloat the image and every cold start (see `reference/gotchas.md` "Model not bake
 ## Prerequisites
 - `RUNPOD_API_KEY` resolvable (runpodctl + REST). Verify: `curl -s -o /dev/null -w '%{http_code}'
   https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY"` → `200`.
-- `docker` running and `docker login` to a registry you can push to (here: Docker Hub user
-  `justinrunpod`). A **public** image needs no Runpod registry auth; a **private** one does
-  (see gotchas).
+- `docker` running and `docker login` to a registry you can push to (`<your-registry>`,
+  e.g. your Docker Hub user). A **public** image needs no Runpod registry auth; a
+  **private** one does (see gotchas).
 - `runpodctl` installed + authenticated.
 - `HF_TOKEN` only if the model is **gated/private** (the SST-2 model is ungated — not needed).
 
 ## The lane handoff (who does what, in order)
 ```
 docker (build --platform=linux/amd64 + push)  →  runpodctl (template → endpoint)  →  REST (/run → poll → /runsync)
-     produces  justinrunpod/rp-gp05:v2               consumes that exact tag           invoke + verify
+     produces  <your-registry>/rp-gp05:v2               consumes that exact tag           invoke + verify
      └──────────── artifact exists ────────────┘  └──────── infra points at it ───────┘
 ```
 The handoff point is the **image tag**. Everything left of it produces the tag; everything
@@ -99,8 +99,8 @@ The Runpod SDK runs one job from a `test_input.json` in the working dir, prints 
 and exits — a full offline dry run:
 ```bash
 echo '{ "input": { "text": "This movie was fantastic" } }' > test_input.json
-docker build --platform=linux/amd64 -t justinrunpod/rp-gp05:v2 .
-docker run --rm --platform=linux/amd64 -v "$PWD/test_input.json:/test_input.json" justinrunpod/rp-gp05:v2
+docker build --platform=linux/amd64 -t <your-registry>/rp-gp05:v2 .
+docker run --rm --platform=linux/amd64 -v "$PWD/test_input.json:/test_input.json" <your-registry>/rp-gp05:v2
 ```
 Observed (after the numpy<2 fix — the first build without it failed here, see gotcha #1):
 ```
@@ -110,7 +110,7 @@ INFO   | Job local_test completed successfully.
 
 ### 3. Push the image (public → no registry auth needed)
 ```bash
-docker push justinrunpod/rp-gp05:v2
+docker push <your-registry>/rp-gp05:v2
 # v2: digest: sha256:a429...  — 2.31 GB, public on Docker Hub
 ```
 
@@ -120,7 +120,7 @@ it's a **two-step**: create a serverless template pointing at the tag, then the 
 the template. `--compute-type CPU` dodges GPU scarcity for a CPU model:
 ```bash
 runpodctl template create --name rp-gp05-tpl --serverless \
-  --image justinrunpod/rp-gp05:v2 --container-disk-in-gb 10
+  --image <your-registry>/rp-gp05:v2 --container-disk-in-gb 10
 # → template id, e.g. 2jfkftkohh
 
 runpodctl serverless create --template-id 2jfkftkohh \
@@ -191,7 +191,7 @@ runpodctl template delete 2jfkftkohh                # the template
 runpodctl serverless list && runpodctl pod list && runpodctl network-volume list  # confirm clean
 ```
 Endpoint is scale-to-zero (`--workers-min 0`), ~$0 idle — but delete it anyway. The pushed
-Docker Hub image (`justinrunpod/rp-gp05:v2`, public) was **left in place** so this doc
+Docker Hub image (`<your-registry>/rp-gp05:v2`, public) was **left in place** so this doc
 references a real, pullable tag; it costs nothing and is harmless. No pod or volume is
 created by this path.
 

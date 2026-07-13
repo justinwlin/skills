@@ -7,7 +7,7 @@ scaler comes in two flavors (**Request Count** vs **Queue Delay**) that ramp ver
 differently under a burst. This path proves both by firing real bursts at a CPU endpoint
 and **watching the worker count climb** on `GET /v2/<id>/health`.
 **Status:** ✅ **COVERED — live-verified 2026-07-13** end to end. Built a tiny CPU handler
-that sleeps 8 s/job (`justinrunpod/gp13-scale:v1`), deployed one endpoint
+that sleeps 8 s/job (`<your-registry>/gp13-scale:v1`), deployed one endpoint
 (`workersMin 0`, `workersMax 3`, `idleTimeout 5`), and ran **four real bursts**:
 **Request Count (value 1)** from cold scaled **0 → 1 → 2 running** as the queue persisted,
 and with 3 workers already warm reached **running = 3 (= max)**; **Queue Delay (4 s)** on
@@ -86,18 +86,18 @@ CMD ["python", "-u", "/handler.py"]
 ```
 Build (amd64 always), test locally, push:
 ```bash
-docker build --platform=linux/amd64 -t justinrunpod/gp13-scale:v1 .
+docker build --platform=linux/amd64 -t <your-registry>/gp13-scale:v1 .
 echo '{ "input": { "sleep": 1 } }' > test_input.json
-docker run --rm --platform=linux/amd64 -v "$PWD/test_input.json:/test_input.json" justinrunpod/gp13-scale:v1
+docker run --rm --platform=linux/amd64 -v "$PWD/test_input.json:/test_input.json" <your-registry>/gp13-scale:v1
 # → Handler output: {'worker': ..., 'slept': 1.0, 'elapsed': 1.001}   ✅
-docker push justinrunpod/gp13-scale:v1
+docker push <your-registry>/gp13-scale:v1
 ```
 
 ### 2. Deploy: scale-to-zero, max 3, Request Count value 1
 Two-step (template → endpoint), exactly like [05](05-model-to-endpoint-pipeline.md):
 ```bash
 runpodctl template create --name gp13-tpl --serverless \
-  --image justinrunpod/gp13-scale:v1 --container-disk-in-gb 10        # → template id rji3f8cw6o
+  --image <your-registry>/gp13-scale:v1 --container-disk-in-gb 10        # → template id rji3f8cw6o
 
 runpodctl serverless create --template-id rji3f8cw6o --name gp13-reqcount \
   --compute-type CPU --workers-min 0 --workers-max 3 \
@@ -199,7 +199,7 @@ runpodctl serverless list && runpodctl network-volume list && runpodctl pod list
 ```
 ✅ On the live run the endpoint + template were deleted and the lists came back with no
 `gp13-*` resources. Scale-to-zero (`--workers-min 0`) means ~$0 idle, but delete anyway.
-The pushed image **`justinrunpod/gp13-scale:v1`** (a ~150 MB `python:3.11-slim` + `runpod`
+The pushed image **`<your-registry>/gp13-scale:v1`** (a ~150 MB `python:3.11-slim` + `runpod`
 sleep handler) was **left public** so this doc references a real, pullable tag; it costs
 nothing. No volume or pod is created by this path.
 

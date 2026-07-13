@@ -227,7 +227,7 @@ runpodctl serverless delete <endpoint-id>
 runpodctl template delete <template-id>
 runpodctl serverless list && runpodctl pod list && runpodctl network-volume list   # confirm clean
 ```
-The pushed image `justinrunpod/gp15-echo:v1` (a ~150 MB `python:3.11-slim` + `runpod` echo
+The pushed image `<your-registry>/gp15-echo:v1` (a ~150 MB `python:3.11-slim` + `runpod` echo
 handler that returns its input plus `RUNPOD_POD_ID`/`RUNPOD_DC_ID`) is left public so this doc
 cites a real, pullable tag; it costs nothing.
 

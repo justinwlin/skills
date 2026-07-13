@@ -5,7 +5,7 @@ HTTP server and Runpod routes requests **directly** to it (custom URL paths, sin
 queue), as opposed to the queue/handler `/run` model — using a **custom image + headless
 API** (no Console, no flash).
 **Status:** ✅ COVERED — live-verified 2026-07-13. A stdlib-only FastAPI-free HTTP worker
-(`justinrunpod/gp14-lb:v1`) was deployed as an `LB`-type endpoint via GraphQL `saveEndpoint`,
+(`<your-registry>/gp14-lb:v1`) was deployed as an `LB`-type endpoint via GraphQL `saveEndpoint`,
 and `GET /ping`, `POST /echo`, `GET /stats` all returned `200` at
 `https://<ENDPOINT_ID>.api.runpod.ai/<path>` with request state persisting on the worker.
 **Lane(s):** custom Docker image + `runpodctl template create` + **GraphQL `saveEndpoint`
@@ -108,8 +108,8 @@ CMD ["python3", "app.py"]
 contract is only "serve `/ping` on the port," not a specific framework.)
 
 ```bash
-docker build --platform linux/amd64 -t justinrunpod/gp14-lb:v1 .
-docker push justinrunpod/gp14-lb:v1
+docker build --platform linux/amd64 -t <your-registry>/gp14-lb:v1 .
+docker push <your-registry>/gp14-lb:v1
 ```
 
 ### 2. Create a serverless template — expose the port AND set PORT/PORT_HEALTH
@@ -118,7 +118,7 @@ port and set **both** `PORT` and `PORT_HEALTH` to it:
 
 ```bash
 runpodctl template create --name gp14-lb-tmpl2 --serverless \
-  --image justinrunpod/gp14-lb:v1 --container-disk-in-gb 5 \
+  --image <your-registry>/gp14-lb:v1 --container-disk-in-gb 5 \
   --ports "5000/http" --env '{"PORT":"5000","PORT_HEALTH":"5000"}'
 # → template id, e.g. 1cyszh62iv
 ```
@@ -212,7 +212,7 @@ curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
 runpodctl template delete 1cyszh62iv
 runpodctl serverless list          # confirm the endpoint is gone
 ```
-Kept image: `justinrunpod/gp14-lb:v1` (the tiny stdlib LB worker above).
+Kept image: `<your-registry>/gp14-lb:v1` (the tiny stdlib LB worker above).
 
 ## Skill gaps folded back
 - The load-balancing endpoint **type is only settable headlessly via GraphQL `saveEndpoint`

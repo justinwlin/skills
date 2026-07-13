@@ -7,7 +7,7 @@ over the *same* socket, in real time. The mechanism that makes this possible is 
 (FastAPI/uvicorn), bypassing the job queue, so protocols the queue can't express —
 WebSockets, SSE, long-lived duplex streams — work natively.
 **Status:** ✅ **COVERED — live-verified 2026-07-13** end to end. Built
-`justinrunpod/gp17-ws:v1` (a `python:3.10-slim` FastAPI worker with `@app.websocket("/ws")`),
+`<your-registry>/gp17-ws:v1` (a `python:3.10-slim` FastAPI worker with `@app.websocket("/ws")`),
 deployed it as an **`LB` (load-balancing) endpoint** via the GraphQL `saveEndpoint`
 mutation, and connected a real Python `websockets` client to
 `wss://<ep>.api.runpod.ai/ws`: sent a JSON prompt, received token-by-token frames + a
@@ -135,10 +135,10 @@ CMD ["python3", "app.py"]
 
 ### 1. Build & push the image (`--platform linux/amd64`)
 ```bash
-docker build --platform linux/amd64 -t justinrunpod/gp17-ws:v1 .
-docker push justinrunpod/gp17-ws:v1
+docker build --platform linux/amd64 -t <your-registry>/gp17-ws:v1 .
+docker push <your-registry>/gp17-ws:v1
 ```
-✅ Live: pushed `justinrunpod/gp17-ws:v1` (digest `sha256:66453f…`). Tested locally first
+✅ Live: pushed `<your-registry>/gp17-ws:v1` (digest `sha256:66453f…`). Tested locally first
 (`docker run -p 8080:80 …` → `ws://localhost:8080/ws` streamed correctly) before deploying.
 
 ### 2. Create a template — **expose the HTTP port your app binds, and set `PORT` to match**
@@ -148,7 +148,7 @@ the worker never becomes "ready", and every request to `<ep>.api.runpod.ai` hang
 even though the worker shows `running`. Align them explicitly:
 ```bash
 runpodctl template create --name gp17-ws-tpl --serverless \
-  --image justinrunpod/gp17-ws:v1 --container-disk-in-gb 10 \
+  --image <your-registry>/gp17-ws:v1 --container-disk-in-gb 10 \
   --ports '80/http' --env '{"PORT":"80"}'            # → template id (e.g. zm01luky1i)
 ```
 ✅ Live: template reported `ports ['80/http']`, `env {'PORT': '80'}`. (Equivalently, keep
@@ -291,7 +291,7 @@ runpodctl serverless list && runpodctl network-volume list && runpodctl pod list
 ✅ All returned `{"deleted": true}` on the live run; no `gp17` endpoints/templates/pods
 remained. **Keep costs near zero:** LB endpoints require a GPU tier, so a warm
 `workersMin: 1` worker bills continuously — delete the moment you've verified. The pushed
-image `justinrunpod/gp17-ws:v1` (~150 MB `python:3.10-slim` + FastAPI) was **left public**
+image `<your-registry>/gp17-ws:v1` (~150 MB `python:3.10-slim` + FastAPI) was **left public**
 so this doc references a real, pullable tag; storage-only, costs nothing to keep.
 
 ## Relation to other paths & skill gaps

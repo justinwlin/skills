@@ -164,7 +164,7 @@ You need a **template** first (`runpodctl serverless create` takes `--template-i
 never `--image` — same two-step as golden path [05](05-model-to-endpoint-pipeline.md)):
 ```bash
 runpodctl template create --name rp-gp10-tpl --serverless \
-  --image justinrunpod/rp-gp10:v1 --container-disk-in-gb 10   # → template id p8b3v1prf1
+  --image <your-registry>/rp-gp10:v1 --container-disk-in-gb 10   # → template id p8b3v1prf1
 ```
 **Preferred: `runpodctl serverless create --network-volume-ids` (needs runpodctl ≥ v2.4.0).**
 The CLI passes the whole set in one call:
@@ -271,7 +271,7 @@ runpodctl serverless list && runpodctl network-volume list && runpodctl pod list
 ```
 ✅ All four `{"deleted": true}` on the live run; lists came back with only pre-existing
 resources. Any sync pods should already be removed with `--terminate-after`. The pushed
-image `justinrunpod/rp-gp10:v1` (a ~150 MB `python:3.11-slim` + `runpod` SDK handler that
+image `<your-registry>/rp-gp10:v1` (a ~150 MB `python:3.11-slim` + `runpod` SDK handler that
 returns `/runpod-volume` contents plus `RUNPOD_DC_ID`/`RUNPOD_VOLUME_ID`) was **left
 public** so this doc references a real, pullable tag; it costs nothing.
 

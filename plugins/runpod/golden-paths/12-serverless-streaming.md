@@ -6,7 +6,7 @@ know when to reach for it instead of `/run`+poll.
 **Status:** ✅ COVERED — live-verified 2026-07-13 end to end. A tiny CPU handler
 `yield`ed a sentence word-by-word (0.5s apart); polling `/stream/<jobId>` returned the
 words **as they were generated** (chunks at t≈11s, 18s, 20s, 21s), and the same job's
-`/status` returned the full aggregated list. Image: `justinrunpod/gp12-stream:v1`.
+`/status` returned the full aggregated list. Image: `<your-registry>/gp12-stream:v1`.
 **Lane(s):** custom handler image (`python:3.11-slim` + `runpod`) + runpodctl (template + CPU endpoint) + REST invoke (`/run` → `/stream` → `/status`)
 
 ## When to use this
@@ -66,14 +66,14 @@ COPY handler.py /app/handler.py
 CMD ["python", "-u", "handler.py"]
 ```
 ```bash
-docker build --platform linux/amd64 -t justinrunpod/gp12-stream:v1 .   # amd64 is required
-docker push justinrunpod/gp12-stream:v1                                 # explicit tag, never :latest
+docker build --platform linux/amd64 -t <your-registry>/gp12-stream:v1 .   # amd64 is required
+docker push <your-registry>/gp12-stream:v1                                 # explicit tag, never :latest
 ```
 
 ### 2. Create a template, then a CPU scale-to-zero endpoint
 ```bash
 runpodctl template create --name gp12-stream-tmpl --serverless \
-  --image justinrunpod/gp12-stream:v1 --container-disk-in-gb 10        # → template id
+  --image <your-registry>/gp12-stream:v1 --container-disk-in-gb 10        # → template id
 
 runpodctl serverless create --template-id <template-id> --name gp12-stream-ep \
   --compute-type CPU --workers-min 0 --workers-max 1 --data-center-ids EU-RO-1  # → endpoint id
@@ -154,7 +154,7 @@ runpodctl serverless delete <endpoint-id>
 runpodctl template delete <template-id>
 runpodctl serverless list && runpodctl network-volume list && runpodctl pod list  # confirm clean
 ```
-Keep the image `justinrunpod/gp12-stream:v1` for re-runs.
+Keep the image `<your-registry>/gp12-stream:v1` for re-runs.
 
 ## Skill gaps folded back
 - `endpoint-workflows.md` documented `/runsync` and `/run`+`/status` but **not**

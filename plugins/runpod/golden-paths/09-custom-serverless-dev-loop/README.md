@@ -10,7 +10,7 @@ Worked example: a whisper **speech → text** handler.
 **Status:** COVERED — live-verified 2026-07-10 end to end. Ran the whole loop on a real
 account: an RTX 4090 pod (`runpod-torch-v280`) transcribed the JFK sample with
 `python handler.py`; the image built `--platform linux/amd64` and pushed to
-`justinrunpod/whisper-dualmode:v1` reproduced it on a clean `/app`; and a serverless
+`<your-registry>/whisper-dualmode:v1` reproduced it on a clean `/app`; and a serverless
 endpoint from that image (`MODE_TO_RUN=serverless`) returned the **same transcription**
 for the same audio — pod↔serverless parity confirmed. The commands/outputs below are the
 real ones; gotchas hit live are folded in. The [`template/`](template/) files derive from
@@ -119,7 +119,7 @@ right architecture** (Runpod hosts are x86_64) and push:
 ```bash
 docker build --platform linux/amd64 -t <you>/whisper-dualmode:v1 template/ --push
 ```
-Verified: built and pushed `justinrunpod/whisper-dualmode:v1`
+Verified: built and pushed `<your-registry>/whisper-dualmode:v1`
 (digest `sha256:e1f739029af2…`). The two-step pip install in the Dockerfile installed
 `cryptography-49.0.0` + `runpod-1.10.1` + `faster-whisper` with no uninstall conflict.
 > Pin an explicit tag (`:v1`), never `:latest` (see
@@ -245,7 +245,7 @@ runpodctl network-volume delete <vol-id>   # if you created one (pod removed fir
 runpodctl pod list && runpodctl serverless list && runpodctl network-volume list   # confirm clean
 ```
 Pod cost guard: `--terminate-after` at creation (deletes it), not `--stop-after`. The pushed
-Docker image (`justinrunpod/whisper-dualmode:v1`) is kept — endpoints reference it by tag.
+Docker image (`<your-registry>/whisper-dualmode:v1`) is kept — endpoints reference it by tag.
 
 ## Relation to the other paths
 - **03 (whisper)** is the *easy* whisper: a Hub worker or flash. **Start there.**

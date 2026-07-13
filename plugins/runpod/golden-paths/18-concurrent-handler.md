@@ -6,7 +6,7 @@ then prove the overlap live and explain how it changes autoscaling (you need few
 workers). This is the throughput knob that lives *inside* the worker; autoscaling (golden
 path 13) is the knob *outside* it.
 **Status:** ✅ COVERED — live-verified 2026-07-13 end to end. A tiny async handler
-(`justinrunpod/gp18-concurrent:v1`, python:3.11-slim + runpod) with
+(`<your-registry>/gp18-concurrent:v1`, python:3.11-slim + runpod) with
 `concurrency_modifier → 4` ran on a **CPU endpoint with workers-max 1**. Four `/run` jobs
 that each `await asyncio.sleep(5)` finished in **5.66 s wall clock** with `/health` showing
 **`inProgress:4` on a single running worker** and identical handler start timestamps. The
@@ -34,7 +34,7 @@ throughput; autoscaling adds/removes workers — they are complementary knobs.
 ## Prerequisites
 - `RUNPOD_API_KEY` resolvable. Verify: `curl -s -o /dev/null -w '%{http_code}'
   https://rest.runpod.io/v1/pods -H "Authorization: Bearer $RUNPOD_API_KEY"` → `200`.
-- `docker` running + `docker login` (here: Docker Hub user `justinrunpod`).
+- `docker` running + `docker login` (here: Docker Hub user `<your-registry>`).
 - `runpodctl` installed + authenticated.
 
 ## The two things that make it concurrent
@@ -95,12 +95,12 @@ CMD ["python", "-u", "/handler.py"]
 
 ### 2. Build (linux/amd64), local dry-run, push
 ```bash
-docker build --platform=linux/amd64 -t justinrunpod/gp18-concurrent:v1 .
+docker build --platform=linux/amd64 -t <your-registry>/gp18-concurrent:v1 .
 echo '{ "input": { "delay": 1, "tag": "local" } }' > test_input.json
 docker run --rm --platform=linux/amd64 -e CONCURRENCY=4 \
-  -v "$PWD/test_input.json:/test_input.json" justinrunpod/gp18-concurrent:v1
+  -v "$PWD/test_input.json:/test_input.json" <your-registry>/gp18-concurrent:v1
 # → Job local_test completed successfully.  (offline SDK dry run)
-docker push justinrunpod/gp18-concurrent:v1
+docker push <your-registry>/gp18-concurrent:v1
 ```
 
 ### 3. Template + endpoint — workers-max 1 on purpose
@@ -109,7 +109,7 @@ the serial (contrast) case. **`workersMax:1`** forces *concurrency*, not scaling
 the load — the whole point of the proof.
 ```bash
 runpodctl template create --name gp18-concurrent-tpl --serverless \
-  --image justinrunpod/gp18-concurrent:v1 --container-disk-in-gb 10 \
+  --image <your-registry>/gp18-concurrent:v1 --container-disk-in-gb 10 \
   --env '{"CONCURRENCY":"4"}'
 # → template id, e.g. zyip4ksy10
 
@@ -193,7 +193,7 @@ runpodctl serverless list && runpodctl pod list # confirm clean
 ```
 Both endpoints were scale-to-zero (`workersMin:0`), ~$0 idle, and deleted after the run
 (verified: 0 gp18 endpoints/templates/pods remain). The public image
-`justinrunpod/gp18-concurrent:v1` was **left in place** so this doc references a real,
+`<your-registry>/gp18-concurrent:v1` was **left in place** so this doc references a real,
 pullable tag; it costs nothing. No pod or volume is created by this path.
 
 ## Skill gaps folded back
