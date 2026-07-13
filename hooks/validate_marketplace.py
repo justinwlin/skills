@@ -47,7 +47,10 @@ def check_claude_marketplace():
         if not source:
             errors.append(f"plugin '{name}': missing 'source'")
             continue
-        pdir = (plugin_root / source).resolve()
+        # Claude Code requires a repo-root-relative path (must start with "." or "/");
+        # a bare name is the pluginRoot-relative shorthand. Resolve accordingly.
+        base = ROOT if isinstance(source, str) and source.startswith((".", "/")) else plugin_root
+        pdir = (base / source).resolve()
         if not pdir.is_dir():
             errors.append(f"plugin '{name}': source dir not found: {pdir.relative_to(ROOT)}")
             continue

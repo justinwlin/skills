@@ -6,15 +6,12 @@
     "name": "Runpod",
     "email": "team@runpod.io"
   },
-  "metadata": {
-    "pluginRoot": "./plugins"
-  },
   "plugins": [
     {
       "name": "runpod",
       "displayName": "Runpod",
       "description": "One entrypoint to run any Runpod task agentically — a router plus lanes for the Runpod MCP server, runpodctl, flash, companion CLIs, and conceptual usage. Bundles the hosted Runpod MCP server config.",
-      "source": "runpod",
+      "source": "./plugins/runpod",
       "category": "Infrastructure",
       "skills": [
         "./skills/runpod",
