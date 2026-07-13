@@ -82,21 +82,14 @@ local (stdio) MCP setup and all client options.
 
 ## Updating
 
-This plugin is **commit-tracked** (no pinned `version`), so **every push to the repo
-is the new version** — you always get the latest on update. Claude Code also
-auto-updates git marketplaces in the background; to pull on demand:
+The plugin is **commit-tracked**: Claude Code auto-updates it in the background when the
+repo has a newer commit. If it hasn't picked up a change yet, update manually:
 
 | Client | Update command |
 | --- | --- |
-| **Claude Code** | `/plugin marketplace update runpod` then `/reload-plugins` (or restart) |
+| **Claude Code** | `/plugin marketplace update runpod` then `/reload-plugins` |
 | **Codex** | `codex plugin marketplace upgrade runpod` |
 | **skills.sh** | re-run `npx skills add runpod/skills` |
-
-> Why no version pin? Per Claude Code's
-> [marketplace docs](https://code.claude.com/docs/en/plugin-marketplaces): *"omit
-> `version` and every commit automatically counts as a new version."* Pinning a
-> `version` would mean users only update when we bump it — we omit it so fixes reach
-> everyone immediately. (Stable releases can switch to bumped semver later.)
 
 ## What's inside
 
