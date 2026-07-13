@@ -14,14 +14,8 @@ Copilot, Windsurf, Cline, and 17+ other agents — all from the same manifest.
 ## Install
 
 Same repo, one manifest — pick your agent below. Every route installs the same
-router + six skills; the MCP-server step differs per client (noted in each).
-
-> **Heads-up — the control-plane MCP.** The plugin bundles a hosted **Runpod MCP
-> server** (create/list/manage pods, endpoints, jobs, volumes) that needs a **one-time
-> sign-in** before its tools work — it's registered on install but stays inert until you
-> authenticate. Each section's MCP step covers it, and the **`runpod` skill auto-detects
-> whether it's connected and walks you through setup if not**. No MCP configured? The
-> skills fall back to `runpodctl` (CLI).
+router + six skills, plus a hosted **Runpod MCP server** for control-plane tools.
+Then [authenticate](#authentication).
 
 ### Claude Code
 
@@ -80,6 +74,26 @@ npx @runpod/mcp-server@latest add     # detects your agent + sets up the hosted 
 See [`runpod-mcp/SKILL.md`](plugins/runpod/skills/runpod-mcp/SKILL.md) for hosted vs
 local (stdio) MCP setup and all client options.
 
+## Authentication
+
+The plugin includes a hosted **Runpod MCP server** (create/list/manage pods, endpoints,
+jobs, volumes) — it needs credentials before its tools work. Pick one:
+
+- **API key** *(recommended)* — get one from the
+  [Runpod console](https://runpod.io/console/user/settings), then `export RUNPOD_API_KEY=…`.
+  This covers **runpodctl** and **flash** directly. To use the key for the **MCP** (instead of
+  OAuth), add the hosted server with a Bearer header:
+  ```bash
+  claude mcp add --transport http runpod -s user https://mcp.getrunpod.io/ \
+    --header "Authorization: Bearer $RUNPOD_API_KEY"
+  ```
+  (Codex + local-stdio variants in [`runpod-mcp`](plugins/runpod/skills/runpod-mcp/SKILL.md).)
+- **OAuth** — or sign in interactively: in Claude Code, `/mcp` → `runpod` → *Sign in with
+  Runpod* (no key on disk). This authenticates the hosted MCP only, not the CLIs.
+
+Companion CLIs (`hf`, `docker`, `gh`, `aws`) use their own credentials. If nothing is set
+up, the `runpod` skill detects it and walks you through this.
+
 ## Updating
 
 The plugin is **commit-tracked**: Claude Code auto-updates it in the background when the
@@ -107,13 +121,6 @@ Start with the **`runpod`** router; it points at the right lane.
 See the plugin's [README](plugins/runpod/README.md) for the full guide, the
 development loop, and setup. Worked end-to-end examples live in
 [`plugins/runpod/golden-paths/`](plugins/runpod/golden-paths/).
-
-## Setup
-
-Everything unifies on a single **`RUNPOD_API_KEY`**
-(https://runpod.io/console/user/settings); `runpodctl doctor` stores it + sets up
-SSH. The hosted MCP server uses "Sign in with Runpod" OAuth instead. Companion
-CLIs use their own credentials.
 
 ## Repository layout
 
