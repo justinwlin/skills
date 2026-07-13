@@ -27,6 +27,29 @@ the right lane and hands off. Read the matching skill's `SKILL.md` next.
 | **companion-clis** | **Prerequisite artifacts**: download a model (`hf`), build/push an image (`docker`), repos/releases (`gh`), move data to a network volume over S3 (`aws`). |
 | **runpod-usage** | **Understand** how Runpod works before acting — pods vs serverless, building a container, storage, GPU selection, gotchas. Knowledge only. |
 
+## First run — is a control plane connected?
+
+Infra tasks (create/list/manage pods, endpoints, jobs, volumes) need **one** control-plane
+lane working: the **Runpod MCP server** (structured tools) or **runpodctl** (CLI). Before
+acting on an infra request, check what's actually available — and if nothing is, **guide the
+user to set it up rather than failing or guessing**:
+
+1. **MCP tools present?** If `create-pod` / `list-endpoints` / … are callable this session →
+   use **runpod-mcp**.
+2. **MCP installed but not authenticated?** Common right after installing this plugin — it
+   bundles the hosted server, but the tools stay inert until sign-in. Guide the user:
+   **Claude Code** → `/mcp` → `runpod` → *"Sign in with Runpod"*, then retry; **Codex** →
+   `codex mcp add runpod --transport http https://mcp.getrunpod.io/`.
+3. **No MCP, but `runpodctl` is installed and `RUNPOD_API_KEY` resolves?** (`runpodctl user`
+   confirms) → use **runpodctl**. The universal fallback.
+4. **Neither ready?** Don't flail — **stop and guide setup**, pick one:
+   - MCP (no key on disk): `npx @runpod/mcp-server@latest add` then authenticate.
+   - CLI: `curl -sSL https://cli.runpod.net | bash`, then `export RUNPOD_API_KEY=…` (or
+     `runpodctl doctor`).
+
+Full setup: **runpod-mcp** (Connect) and `runpod-usage/reference/getting-started.md`. Once one
+lane answers, continue with the routing below.
+
 ## How to route
 
 1. **Conceptual question, or an unmade design choice** (serverless vs pod? which

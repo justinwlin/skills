@@ -16,6 +16,13 @@ Copilot, Windsurf, Cline, and 17+ other agents — all from the same manifest.
 Same repo, one manifest — pick your agent below. Every route installs the same
 router + six skills; the MCP-server step differs per client (noted in each).
 
+> **Heads-up — the control-plane MCP.** The plugin bundles a hosted **Runpod MCP
+> server** (create/list/manage pods, endpoints, jobs, volumes) that needs a **one-time
+> sign-in** before its tools work — it's registered on install but stays inert until you
+> authenticate. Each section's MCP step covers it, and the **`runpod` skill auto-detects
+> whether it's connected and walks you through setup if not**. No MCP configured? The
+> skills fall back to `runpodctl` (CLI).
+
 ### Claude Code
 
 ```

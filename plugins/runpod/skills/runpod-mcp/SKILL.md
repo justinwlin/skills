@@ -49,6 +49,13 @@ claude mcp add runpod -s user -e RUNPOD_API_KEY=YOUR_KEY -- npx -y @runpod/mcp-s
 After connecting, reconnect the client (in Claude Code, `/mcp`) and the tools
 appear in the session.
 
+**Verify it's live (do this before relying on MCP):** in Claude Code run `/mcp` —
+`runpod` should show **Connected**, not *Needs authentication* (if it's the latter,
+sign in there first; the bundled plugin server registers the URL but stays inert
+until you authenticate). Confirm a real call works by asking for `list-endpoints`.
+If the `runpod` tools aren't present at all, the server isn't connected — (re)run the
+install above, or fall back to **runpodctl** for this task.
+
 ## Tool surface
 
 Structured tools, grouped by resource:
