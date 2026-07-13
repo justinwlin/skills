@@ -11,6 +11,28 @@ outputs are the real ones, and every test resource was torn down after. 04's tra
 phase was verified as the train phase of golden path 08; 01–10 were run 2026-07-07→10,
 and 11–19 on 2026-07-13.
 
+## Before you run any path (shared prerequisites)
+
+Every path assumes this baseline — set it up once, then follow the path:
+
+- **Auth + SSH keys** — resolve `RUNPOD_API_KEY` (or `runpodctl doctor` / MCP OAuth) and,
+  for any pod path, **register an SSH key before creating the pod**. Full setup:
+  [`../skills/runpod-usage/reference/getting-started.md`](../skills/runpod-usage/reference/getting-started.md).
+- **Companion CLIs** — image paths need `docker` running **and `docker login`** to a
+  registry you can push to; some paths need `hf` (HF token) or `aws` (Runpod S3 keys,
+  which are **Console-only** — an agent can't self-provision them). See
+  [`../skills/companion-clis/SKILL.md`](../skills/companion-clis/SKILL.md).
+- **Placeholders are yours to fill** — commands use `<template-id>`, `<endpoint-id>`,
+  `<vol-…>`, etc.; capture the real id a command returns and reuse it in the next step.
+  **Docker images shown as `<your-registry>/gpNN-…` are the original live-run images —
+  you cannot push to that namespace; `docker login` and substitute your own.** Real ids
+  shown inside "observed output" blocks are evidence from the original run, not values to
+  paste.
+- **runpodctl version** — a few paths need **≥ v2.4.0** (multi-volume attach); the
+  Homebrew tap can lag, so install from
+  [GitHub releases](https://github.com/runpod/runpodctl/releases) if `runpodctl version`
+  is behind.
+
 ## Layout
 
 - A path with **one approach** is a single file: `NN-name.md`.

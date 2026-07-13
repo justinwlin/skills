@@ -174,7 +174,7 @@ runpodctl serverless create --template-id <template-id> --compute-type CPU \
   --data-center-ids EU-RO-1,EU-CZ-1 --workers-min 0 --workers-max 1
 ```
 ✅ **Live 2026-07-10** (runpodctl built from `main`) — endpoint created, then
-`GET /v1/endpoints/<id>` confirmed `"networkVolumeIds":["<vol-a>","<vol-b>"]` (both
+`GET /v1/endpoints/<id>` confirmed `"networkVolumeIds":["<vol-ro>","<vol-cz>"]` (both
 attached). Under the hood runpodctl calls the GraphQL `saveEndpoint` mutation with the ids
 as **objects** — see the fallback below for what that looks like.
 
