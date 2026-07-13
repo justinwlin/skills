@@ -13,35 +13,65 @@ Copilot, Windsurf, Cline, and 17+ other agents — all from the same manifest.
 
 ## Install
 
-Pick whichever fits your agent — both read the same repo.
+Same repo, one manifest — pick your agent below. Every route installs the same
+router + six skills; the MCP-server step differs per client (noted in each).
 
-### As a plugin (Claude Code, Codex, Gemini, opencode, …)
-
-Native install with auto-update:
+### Claude Code
 
 ```
 /plugin marketplace add runpod/skills
 /plugin install runpod@runpod
+/reload-plugins
 ```
 
-In Claude Code, installing the plugin also wires up the **hosted Runpod MCP
-server** (via the bundled [`.mcp.json`](plugins/runpod/.mcp.json)) — no separate
-MCP setup. (Codex/Gemini may need the MCP server added separately; see
-[`runpod-mcp`](plugins/runpod/skills/runpod-mcp/SKILL.md).)
+Installing **also wires up the hosted Runpod MCP server** (via the bundled
+[`.mcp.json`](plugins/runpod/.mcp.json)) — no separate MCP setup. Authenticate it:
+`/mcp` → **runpod** → *Sign in with Runpod* (OAuth; no key on disk).
 
-### With skills.sh (Cursor, Copilot, Windsurf, Cline, + 17 others)
+**Verify:** `/plugin` shows **Runpod** under *Installed*; then ask *"list my Runpod
+endpoints"* — it should call the MCP `list-endpoints` tool.
+
+### Codex
+
+```bash
+codex plugin marketplace add https://github.com/runpod/skills.git
+codex /plugins        # → open the "Runpod" marketplace tab → Runpod → Install (reload if prompted)
+```
+
+Manage the source: `codex plugin marketplace list` · `… upgrade runpod` · `… remove runpod`.
+
+Codex may **not** auto-wire the bundled MCP — if the `runpod` MCP tools don't appear
+after install, add the hosted server manually:
+
+```bash
+codex mcp add runpod --transport http https://mcp.getrunpod.io/
+```
+
+**Verify:** ask a Runpod task (the skill/router should answer); once the MCP is added,
+*"list my Runpod endpoints"* should call a tool.
+
+### Everything else — Cursor, Copilot, Windsurf, Cline, opencode, Gemini (+17)
+
+Install the skills via **skills.sh** (reads the same
+[`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)):
 
 ```bash
 npx skills add runpod/skills
-```
-
-skills.sh reads the same [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)
-manifest, so this installs the same six skills. To grab a single skill, point at
-its path:
-
-```bash
+# just one skill:
 npx skills add https://github.com/runpod/skills/tree/main/plugins/runpod/skills/runpodctl
 ```
+
+Gemini can also install natively via the bundled
+[`gemini-extension.json`](plugins/runpod/gemini-extension.json) (see your client's
+extension docs). For these clients, add the **MCP server** yourself — the guided
+installer configures most agents:
+
+```bash
+npx @runpod/mcp-server@latest add     # detects your agent + sets up the hosted MCP (OAuth)
+```
+
+See [`runpod-mcp/SKILL.md`](plugins/runpod/skills/runpod-mcp/SKILL.md) for hosted vs
+local (stdio) MCP setup and all client options.
 
 ## What's inside
 
