@@ -49,6 +49,29 @@ observed output) → Gotchas we hit → Cost & cleanup → Skill gaps folded bac
 > ComfyUI, Variant A for Whisper) unless you need custom code — that's the
 > development loop's "prefer prebuilt over from-scratch" rule in action.
 
+## Planned golden paths (to be done)
+
+Candidate paths not yet written. 📋 = backlog (not started). Each needs the standard
+template + a live run before it flips to ✅.
+
+| # | Planned golden path | What it should prove | Key references |
+| --- | --- | --- | --- |
+| 11 | Public Endpoints — call a ready hosted model | When to use a Runpod-hosted Public Endpoint vs deploying your own; auth + a real request | [docs: public endpoints](https://docs.runpod.io/serverless/endpoints/send-requests#s3-compatible-storage) / serverless overview |
+| 12 | Serverless streaming (`/stream`) | Incremental token/SSE output from a handler via `/stream`; when to use vs `/run`+poll | [docs: send requests](https://docs.runpod.io/serverless/endpoints/send-requests) |
+| 13 | Autoscaling tuning | Queue-delay vs request-count scalers under load; max-workers + idle-timeout + FlashBoot cost/latency trade-offs | [docs: endpoint configurations](https://docs.runpod.io/serverless/endpoints/endpoint-configurations#worker-scaling) |
+| 14 | Load-balancing endpoint (non-flash) | The load-balancing serverless endpoint type via runpodctl/REST (flash LB is already covered) | [docs: load balancing](https://docs.runpod.io/serverless/load-balancing/overview) |
+| 15 | Monitor & debug / observability | `/health` worker counts, worker logs (MCP `stream-worker-logs`), and config-change **alerts** (max-workers / region toggles verified live 2026-07-13) | [docs: troubleshooting](https://docs.runpod.io/serverless/troubleshooting) |
+| 16 | Serverless webhooks | Fire a webhook on job completion (`webhook` in the job request) instead of polling `/status` | [docs: send requests](https://docs.runpod.io/serverless/endpoints/send-requests) |
+| 17 | Serverless WebSocket worker | Bidirectional/streaming worker over WebSocket | [runpod-workers/worker-websocket](https://github.com/runpod-workers/worker-websocket) |
+| 18 | Concurrent handler (per-worker concurrency) | One worker handling many requests at once via an async concurrency-modifier handler — changes when you even need to scale out (pairs with 13) | [docs: concurrent handler](https://docs.runpod.io/serverless/workers/concurrent-handler) |
+| 19 | 3-region same-file endpoint | One endpoint attached to **three** network volumes (3 DCs), the **same file** synced to all three, serving the **same request** identically regardless of region — extends [10](10-multi-region-ha-serverless.md) from 2→3 regions with an actual served payload | [10](10-multi-region-ha-serverless.md), [docs: network volumes](https://docs.runpod.io/storage/network-volumes) |
+
+> Notes: 13 (autoscaling) and 18 (concurrency) are complementary — concurrency raises
+> per-worker throughput, autoscaling adds/removes workers; document them together or
+> cross-linked. 15 partly prototyped on 2026-07-13 (config-change alert events fired live
+> via max-workers + network-region toggles). 19 is the concrete "prove the HA promise with
+> a real served payload across 3 DCs" follow-up to 10.
+
 ## How to use these
 
 1. **Match your task to a row** in the table (or read
