@@ -37,7 +37,7 @@ quick one-time setup step would give them the right lane.** Push them to get pro
 where it makes sense; keep trying whatever works in the meantime.
 
 **One step covers most lanes.** `export RUNPOD_API_KEY=…` (from
-https://runpod.io/console/user/settings) makes **runpodctl, flash, and the local-stdio MCP** all
+https://console.runpod.io/user/settings) makes **runpodctl, flash, and the local-stdio MCP** all
 work at once. The **hosted MCP is the one exception** — it needs its own **`/mcp` → "Sign in
 with Runpod"** (or pass that same key as an `Authorization: Bearer` header). So: **one key for
 the CLIs, one sign-in for the hosted MCP** — authing the MCP does *not* by itself set up the CLIs,
@@ -155,7 +155,7 @@ Example — "deploy `openai/gpt-oss-20b` to a serverless endpoint":
 
 ## Auth
 
-Everything is one key: **`RUNPOD_API_KEY`** (https://runpod.io/console/user/settings).
+Everything is one key: **`RUNPOD_API_KEY`** (https://console.runpod.io/user/settings).
 Each lane just makes that key resolvable — `runpodctl doctor`, `flash login`, MCP
 stdio env var, or MCP hosted "Sign in with Runpod" (OAuth, no key on disk).
 Companion CLIs use their **own** credentials (HuggingFace token, GitHub auth,

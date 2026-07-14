@@ -18,7 +18,7 @@ flash skill is at [../../../flash/SKILL.md](../../../flash/SKILL.md).
   ```
 - A Runpod API key exported for non-interactive use:
   ```bash
-  export RUNPOD_API_KEY=...             # https://runpod.io/console/user/settings
+  export RUNPOD_API_KEY=...             # https://console.runpod.io/user/settings
   ```
 
 ## Walkthrough

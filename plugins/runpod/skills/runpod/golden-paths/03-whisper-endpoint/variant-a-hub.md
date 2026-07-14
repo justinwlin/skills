@@ -13,7 +13,7 @@ cost notes live in the [folder README](README.md).
   [../../../runpodctl/SKILL.md](../../../runpodctl/SKILL.md).
 - A Runpod API key exported for non-interactive use:
   ```bash
-  export RUNPOD_API_KEY=...   # https://runpod.io/console/user/settings
+  export RUNPOD_API_KEY=...   # https://console.runpod.io/user/settings
   ```
 
 ## Walkthrough

@@ -22,7 +22,7 @@ Nothing to install for the **hosted MCP** beyond configuring your client, and th
 
 ## The Runpod API key
 
-Get it once at **https://runpod.io/console/user/settings** → API Keys. Then make
+Get it once at **https://console.runpod.io/user/settings** → API Keys. Then make
 it resolvable for the lane:
 
 | Lane | Set the key | Notes |

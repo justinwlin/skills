@@ -42,7 +42,7 @@ runpodctl pod list                  # List your pods
 > doctor` is interactive (prompts) and also sets up SSH keys — good for a human's
 > first run, not for scripted use.
 
-API key: https://runpod.io/console/user/settings
+API key: https://console.runpod.io/user/settings
 
 ## Live Help Is Authoritative
 
