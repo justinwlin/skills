@@ -6,16 +6,20 @@ and not on a network volume** — instead attach a HuggingFace model with
 worker loads it straight from the standard HF cache. Prove it end to end with a **tiny
 model** (`Qwen/Qwen2.5-0.5B-Instruct`) so it provisions in seconds and costs a fraction of
 a cent, then swap only the model URL for a real one.
-**Status:** ⚠️ PARTIALLY VERIFIED — live run 2026-07-14 (runpodctl v2.7.1). **Deploy path
-confirmed:** `serverless create --hub-id <worker-vllm> --model-reference …:main` returned
-an endpoint id with **no baked image and no network volume**, and Runpod resolved the
-`:main` ref to a pinned commit — real response:
+**Status:** ⚠️ PARTIALLY VERIFIED — two live runs 2026-07-14 (runpodctl v2.7.1). **Deploy
+path confirmed:** `serverless create --hub-id <worker-vllm> --model-reference …:main`
+returned an endpoint id with **no baked image and no network volume**, and Runpod resolved
+`:main` to a pinned commit — real response:
 `"modelReferences":["https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct:7ae557604adf67be50417f59c2c2f167def9a775"]`,
-`"gpuIds":"ADA_24"`. **Inference NOT verified:** the worker-vllm worker stayed
-`initializing` for >20 min (first cold start on a fresh RTX 4090 host: large image pull +
-first-time cache population) and never reached `ready` before we tore the endpoint down.
-The cache-path check (below) is therefore still open. Re-run when a worker readies to
-upgrade to ✅.
+`"gpuIds":"ADA_24"`. **Inference NOT confirmed:** run 1 the worker stayed `initializing`
+>20 min (first-ever image pull) and never readied; run 2 it readied in **162s** (image
+warm on the pool) but the worker-vLLM engine was extremely slow to serve — a sync
+`/openai` call hit a Cloudflare **524** (>100s edge timeout on the first-request model
+load), and an async `/run` job then sat `IN_QUEUE` ~15 min behind a "ready" worker
+(`inProgress:0` — the "ready but not dispatching" symptom) and was only `running` at
+teardown. No `COMPLETED` output was captured, so the on-host cache path is still
+unconfirmed. Total spend across both runs ≈ $0.64. Re-run (ideally with worker logs via
+MCP/Console) to close it.
 **Lane(s):** `runpodctl serverless` (`--model-reference`, **v2.4.0+**) + a vLLM worker
 (Hub `--hub-id` or a serverless template) + the OpenAI-compatible invoke route.
 
@@ -71,7 +75,18 @@ curl -s "https://api.runpod.ai/v2/<endpoint-id>/health" \
   -H "Authorization: Bearer $RUNPOD_API_KEY"     # workers.ready >= 1
 ```
 
-### 4. Call it (OpenAI-compatible route)
+### 4. Call it — use the ASYNC route for the first (cold) call
+The **synchronous** `/openai/...` and `/runsync` routes are behind a ~100 s edge timeout;
+on a cold worker the first-request model load exceeds it and you get a Cloudflare **524**
+(observed 2026-07-14). Submit with async `/run` and poll `/status` instead:
+```bash
+JOB=$(curl -s -X POST "https://api.runpod.ai/v2/<endpoint-id>/run" \
+  -H "Authorization: Bearer $RUNPOD_API_KEY" -H "Content-Type: application/json" \
+  -d '{"input":{"prompt":"Say hello in one word.","sampling_params":{"max_tokens":10,"temperature":0}}}' | jq -r .id)
+curl -s "https://api.runpod.ai/v2/<endpoint-id>/status/$JOB" -H "Authorization: Bearer $RUNPOD_API_KEY"
+# poll until "COMPLETED"
+```
+Once a worker is **warm**, the sync OpenAI route is fine for chat:
 ```bash
 curl -s -X POST "https://api.runpod.ai/v2/<endpoint-id>/openai/v1/chat/completions" \
   -H "Authorization: Bearer $RUNPOD_API_KEY" -H "Content-Type: application/json" \
@@ -102,12 +117,19 @@ Results from the 2026-07-14 live run:
   fail to resolve.
 - **Readiness, not fire-and-forget** — a fresh endpoint reports created before any worker
   is ready; poll `/health` before calling (see [15 — monitor & debug](15-monitor-and-debug.md)).
-- **First cold start can be very long.** On the 2026-07-14 run the worker-vllm worker sat
-  `initializing` for >20 min on a fresh RTX 4090 host (large image pull + first-time cache
-  population) and never readied. Budget generously for the first deploy, keep `--workers-min
-  0` so you don't pay while it churns, and consider a lighter GPU pool or a smaller worker
-  image if cold start matters. If it never readies, check GPU-pool availability for the
-  chosen `--gpu-id` and try another pool.
+- **First cold start can be very long.** Run 1 (2026-07-14): worker-vLLM sat
+  `initializing` >20 min on a fresh RTX 4090 host (first-ever ~10 GB image pull) and never
+  readied. Run 2: readied in **162 s** once the image was warm on the pool. Budget
+  generously for the first deploy, keep `--workers-min 0` so you don't pay while it churns.
+- **Sync routes 524 on cold load.** `/openai/...` and `/runsync` sit behind a ~100 s edge
+  timeout; the first-request model load blew past it → Cloudflare **524**. Use async
+  `/run` + `/status` for the first call (see step 4).
+- **"Ready" ≠ draining the queue.** Run 2: `/health` showed `workers.ready:1` but an async
+  `/run` job sat `IN_QUEUE` ~15 min with `inProgress:0`, only reaching `running` at
+  teardown — the exact "ready but mis-dispatching" symptom the runpodctl skill flags. If
+  jobs don't move behind a ready worker, the worker image is slow/broken to serve; give it
+  more time, get worker logs (MCP/Console), or switch workers — don't assume the cache flag
+  is at fault (the deploy + ref-pinning worked).
 
 ## Cost & cleanup
 - A 0.5B model on an RTX 4090 scaled to zero (`--workers-min 0`, the default) bills only
