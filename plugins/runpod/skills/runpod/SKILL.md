@@ -120,25 +120,26 @@ prebuilt template / Hub worker over building from scratch** → provision → se
 ## Worked examples (golden paths)
 
 **Nineteen** end-to-end, **live-verified** scenarios live in
-[`../../golden-paths/README.md`](../../golden-paths/README.md) — the yardstick for "can
+[`./golden-paths/README.md`](./golden-paths/README.md) — the yardstick for "can
 an agent finish the job", with real commands + observed output to copy from. When a
 task matches one, **open its golden path first** instead of re-deriving it:
 
 | Want to… | Golden path |
 | --- | --- |
-| Run a server (Ollama/ComfyUI) on a pod at a URL | [01](../../golden-paths/01-ollama-pod.md), [02](../../golden-paths/02-comfyui-pod/README.md) |
-| Deploy a serverless model endpoint (Hub / flash / custom image) | [03](../../golden-paths/03-whisper-endpoint/README.md), [05](../../golden-paths/05-model-to-endpoint-pipeline.md) |
-| Call a ready hosted model (no deploy) | [11 — Public Endpoints](../../golden-paths/11-public-endpoints.md) |
-| Fine-tune, then serve the result | [04](../../golden-paths/04-finetune-pod.md), [08](../../golden-paths/08-finetune-to-serverless.md) |
-| Interactive dev box (SSH / VS Code) | [06](../../golden-paths/06-dev-pod.md) |
-| Move data pod → volume → serverless | [07](../../golden-paths/07-network-volume-handoff.md) |
-| **Custom serverless when flash isn't enough** (dual-mode image dev loop) | [09](../../golden-paths/09-custom-serverless-dev-loop/README.md) |
-| **High availability / multi-region** serverless (multi-volume + data sync) | [10](../../golden-paths/10-multi-region-ha-serverless.md), [19 (3-region)](../../golden-paths/19-three-region-same-file.md) |
-| Stream output incrementally (`/stream`) | [12](../../golden-paths/12-serverless-streaming.md) |
-| Tune autoscaling / raise per-worker throughput | [13 (autoscaling)](../../golden-paths/13-autoscaling-tuning.md), [18 (concurrency)](../../golden-paths/18-concurrent-handler.md) |
-| Load-balancing / HTTP-server or WebSocket worker | [14 (LB)](../../golden-paths/14-load-balancing-endpoint.md), [17 (WebSocket)](../../golden-paths/17-serverless-websocket.md) |
-| Get notified on job completion (push, not poll) | [16 — webhooks](../../golden-paths/16-serverless-webhooks.md) |
-| Check health / debug a failing endpoint | [15 — monitor & debug](../../golden-paths/15-monitor-and-debug.md) |
+| Run a server (Ollama/ComfyUI) on a pod at a URL | [01](./golden-paths/01-ollama-pod.md), [02](./golden-paths/02-comfyui-pod/README.md) |
+| Deploy a serverless model endpoint (Hub / flash / custom image) | [03](./golden-paths/03-whisper-endpoint/README.md), [05](./golden-paths/05-model-to-endpoint-pipeline.md) |
+| Serve a HuggingFace model without baking it in or a volume (host-cached) | [20 — model caching (`--model-reference`)](./golden-paths/20-model-caching-endpoint.md) |
+| Call a ready hosted model (no deploy) | [11 — Public Endpoints](./golden-paths/11-public-endpoints.md) |
+| Fine-tune, then serve the result | [04](./golden-paths/04-finetune-pod.md), [08](./golden-paths/08-finetune-to-serverless.md) |
+| Interactive dev box (SSH / VS Code) | [06](./golden-paths/06-dev-pod.md) |
+| Move data pod → volume → serverless | [07](./golden-paths/07-network-volume-handoff.md) |
+| **Custom serverless when flash isn't enough** (dual-mode image dev loop) | [09](./golden-paths/09-custom-serverless-dev-loop/README.md) |
+| **High availability / multi-region** serverless (multi-volume + data sync) | [10](./golden-paths/10-multi-region-ha-serverless.md), [19 (3-region)](./golden-paths/19-three-region-same-file.md) |
+| Stream output incrementally (`/stream`) | [12](./golden-paths/12-serverless-streaming.md) |
+| Tune autoscaling / raise per-worker throughput | [13 (autoscaling)](./golden-paths/13-autoscaling-tuning.md), [18 (concurrency)](./golden-paths/18-concurrent-handler.md) |
+| Load-balancing / HTTP-server or WebSocket worker | [14 (LB)](./golden-paths/14-load-balancing-endpoint.md), [17 (WebSocket)](./golden-paths/17-serverless-websocket.md) |
+| Get notified on job completion (push, not poll) | [16 — webhooks](./golden-paths/16-serverless-webhooks.md) |
+| Check health / debug a failing endpoint | [15 — monitor & debug](./golden-paths/15-monitor-and-debug.md) |
 
 ## Multi-lane tasks
 

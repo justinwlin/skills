@@ -120,14 +120,14 @@ Start with the **`runpod`** router; it points at the right lane.
 
 See the plugin's [README](plugins/runpod/README.md) for the full guide, the
 development loop, and setup. Worked end-to-end examples live in
-[`plugins/runpod/golden-paths/`](plugins/runpod/golden-paths/).
+[`plugins/runpod/skills/runpod/golden-paths/`](plugins/runpod/skills/runpod/golden-paths/).
 
 ## Repository layout
 
 ```
 .claude-plugin/marketplace.json   Claude Code / skills.sh marketplace manifest
 .agents/plugins/marketplace.json  Codex marketplace manifest
-plugins/runpod/                   the plugin (skills/, golden-paths/, .mcp.json, manifests)
+plugins/runpod/                   the plugin (skills/ incl. runpod/golden-paths/, .mcp.json, manifests)
 hooks/                            marketplace, branding & link validation
 ```
 

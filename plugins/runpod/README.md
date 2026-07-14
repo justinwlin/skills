@@ -32,9 +32,11 @@ pod vs serverless → prefer a prebuilt template/Hub worker over from-scratch �
 provision → verify with a real request ("Running" ≠ "ready") → deliver → cost-guard
 + teardown.** See [`skills/runpod-usage/reference/development-loop.md`](skills/runpod-usage/reference/development-loop.md).
 
-The [`golden-paths/`](golden-paths/) folder holds worked, end-to-end reference
-tasks (Ollama, ComfyUI, Whisper, …) — acceptance scenarios, not installed skills
-(they have no `SKILL.md`, so agents don't load them).
+The [`skills/runpod/golden-paths/`](skills/runpod/golden-paths/) folder holds
+worked, end-to-end reference tasks (Ollama, ComfyUI, Whisper, …) — acceptance
+scenarios, not installed skills (they have no `SKILL.md`, so agents don't load
+them). They live under the `runpod` router skill that indexes them, so they
+travel with it on a single-skill install.
 
 ## Setup
 
@@ -72,12 +74,12 @@ More in [`skills/runpod-usage/reference/networking.md`](skills/runpod-usage/refe
 ```
 skills/
   runpod/            router / entrypoint
+    golden-paths/    worked end-to-end reference tasks (indexed by the router)
   runpod-mcp/        Runpod MCP server (structured tool calls)
   runpodctl/         Runpod CLI (+ Hub, transfer, SSH, doctor)
   flash/             write & deploy your own code (@remote)
   companion-clis/    hf / gh / docker / aws prerequisites
   runpod-usage/      concepts + reference/*.md
-golden-paths/        worked end-to-end reference tasks
 .mcp.json            hosted Runpod MCP server config
 ```
 

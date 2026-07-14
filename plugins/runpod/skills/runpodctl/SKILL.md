@@ -20,24 +20,7 @@ Manage GPU pods, serverless endpoints, templates, volumes, and models.
 
 ## Install
 
-```bash
-# Any platform (official installer)
-curl -sSL https://cli.runpod.net | bash
-
-# macOS (Homebrew)
-brew install runpod/runpodctl/runpodctl
-
-# macOS (manual — universal binary)
-mkdir -p ~/.local/bin && curl -sL https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-darwin-all.tar.gz | tar xz -C ~/.local/bin
-
-# Linux
-mkdir -p ~/.local/bin && curl -sL https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-linux-amd64.tar.gz | tar xz -C ~/.local/bin
-
-# Windows (PowerShell)
-Invoke-WebRequest -Uri https://github.com/runpod/runpodctl/releases/latest/download/runpodctl-windows-amd64.zip -OutFile runpodctl.zip; Expand-Archive runpodctl.zip -DestinationPath $env:LOCALAPPDATA\runpodctl; [Environment]::SetEnvironmentVariable('Path', $env:Path + ";$env:LOCALAPPDATA\runpodctl", 'User')
-```
-
-Ensure `~/.local/bin` is on your `PATH` (add `export PATH="$HOME/.local/bin:$PATH"` to `~/.bashrc` or `~/.zshrc`).
+`curl -sSL https://cli.runpod.net | bash` (any platform) or `brew install runpod/runpodctl/runpodctl`. Manual binaries, Windows/Linux steps, and the version caveat (`--model-reference` + multi-volume need **v2.4.0+**): **[reference/install.md](reference/install.md)**.
 
 ## Quick start
 
@@ -146,7 +129,9 @@ runpodctl serverless delete <endpoint-id>             # Delete endpoint
 
 **Create from hub:** `--hub-id` resolves the hub listing, extracts the build image and config (GPU IDs, container disk, env vars), creates an inline template, and deploys. Accepts both SERVERLESS and POD listing types. GPU IDs and env var defaults from the hub config are included automatically; override with `--gpu-id` and `--env`.
 
-**Model cache (`--model-reference`):** Attach a Hugging Face model to the endpoint by full URL with a ref, e.g. `https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct:main` (the trailing `:main` is the branch/tag/revision). Runpod caches the model on the host in the default Hugging Face cache directory (`/runpod-volume/huggingface-cache/hub/`), so the worker loads it directly — no need to bake the model into the image or attach a network volume. The flag is repeatable, so you can attach multiple models, and uses the standard HF cache path, so anything that already reads the Hugging Face cache (Transformers, vLLM, etc.) picks it up automatically. Works with both `--template-id` and `--hub-id`, but only with `--compute-type GPU`. Requires runpodctl v2.4.0+.
+**CPU serverless endpoints:** always use `runpodctl serverless create --compute-type CPU` (optionally `--instance-id`, e.g. `cpu3g-4-16`) — or the MCP server. **Do not** create a CPU endpoint via the **public control REST** `POST https://rest.runpod.io/v1/endpoints` with `"computeType":"CPU"` — that silently provisions a **GPU** endpoint instead (verified 2026-07-14: the created endpoint comes back with `gpuCount:1` and `cpuFlavorIds:null`; `runpodctl --compute-type CPU` correctly returns `computeType:"CPU"` with `instanceIds:["cpu3g-4-16"]`). The MCP server drives Runpod's internal **REST v2** and handles this correctly; the public REST is v1-only (`rest.runpod.io/v2` just redirects to docs). Note the separate **runtime/invoke** API `https://api.runpod.ai/v2/<endpoint-id>/…` (health/run/runsync/openai) is a different v2 and works fine — the v1-vs-v2 caveat here is only about the **control/management** REST.
+
+**Model cache (`--model-reference`):** Attach a Hugging Face model to the endpoint by full URL with a ref, e.g. `https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct:main`. Runpod caches it host-side in the standard HF cache dir (`/runpod-volume/huggingface-cache/hub/`), so the worker loads it directly — no bake, no volume. Repeatable; works with `--template-id`/`--hub-id`, GPU only, **runpodctl v2.4.0+**. Full mechanics + how it compares to baking / network volume / the Model Repository: **[reference/model-caching.md](reference/model-caching.md)**. Worked end-to-end: golden path [20 — model-caching endpoint](../runpod/golden-paths/20-model-caching-endpoint.md).
 
 **Multi-region / high-availability (`--network-volume-ids`):** attach **multiple** network
 volumes (one per data center) so workers spread across DCs instead of being pinned to one —
@@ -155,7 +140,7 @@ volumes (one per data center) so workers spread across DCs instead of being pinn
 `runpodctl version`; the Homebrew tap can lag, so prefer the
 [GitHub releases](https://github.com/runpod/runpodctl/releases) binary. Data does **not**
 sync between volumes automatically — see golden path
-[10 — multi-region HA serverless](../../golden-paths/10-multi-region-ha-serverless.md).
+[10 — multi-region HA serverless](../runpod/golden-paths/10-multi-region-ha-serverless.md).
 
 For exact serverless flags, run `runpodctl serverless <action> --help`.
 
@@ -192,18 +177,24 @@ runpodctl network-volume delete <volume-id>           # Delete volume
 
 For exact network volume flags, run `runpodctl network-volume <action> --help`.
 
-### Models
+### Models (Model Repository)
+
+`runpodctl model` manages the **Runpod Model Repository** — managed, versioned storage
+for your **own** model artifacts (upload once, distributed to workers; not pinned to a
+data center like a network volume). What it is, why/how, migrating off a baked-in model,
+and Model-Repo-vs-volume: **[reference/model-caching.md](reference/model-caching.md)**.
 
 ```bash
 runpodctl model list                                  # List your models
-runpodctl model list --all                            # List all models
+runpodctl model list --all                            # List all models (not just yours)
 runpodctl model list --name "llama"                   # Filter by name
 runpodctl model list --provider "meta"                # Filter by provider
-runpodctl model add --name "my-model" --model-path ./model  # Add model
-runpodctl model remove --name "my-model"              # Remove model
+runpodctl model add --name "my-model" --model-path ./model   # Upload a local model dir (multipart)
+runpodctl model remove --name "my-model" --owner <owner>     # Remove a model
 ```
 
-For exact model flags, run `runpodctl model <action> --help`.
+For exact model flags, run `runpodctl model <action> --help` (authoritative — `model add`
+supports upload sessions, versioning, metadata, and private-source credentials).
 
 ### Registry (alias: reg)
 

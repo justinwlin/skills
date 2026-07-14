@@ -41,7 +41,7 @@ Runpod pick any available GPU in that tier (better availability); pinning an exa
 GPU type gives determinism but can be throttled when supply is tight. Pool names are
 used by Serverless configs, the Runpod Hub, flash's `GpuGroup`, and the GraphQL API.
 
-Pool reference (source of truth: `skills/flash/SKILL.md`):
+Pool reference (source of truth: `skills/flash/reference/api.md`):
 
 | Pool | GPUs | VRAM |
 |------|------|------|

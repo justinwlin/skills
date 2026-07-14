@@ -9,7 +9,7 @@ description: >-
 user-invocable: true
 metadata:
   author: runpod
-  version: "1.0"
+  version: "1.1"
 license: Apache-2.0
 ---
 
@@ -17,94 +17,15 @@ license: Apache-2.0
 
 Write code locally, iterate with `flash dev` — it runs your functions on remote Runpod GPUs/CPUs with hot-reload and live worker logs — then `flash deploy` to ship. `Endpoint` handles provisioning.
 
-## Setup
+**Load on demand — this skill keeps the mental model + gotchas inline; details live in [`reference/`](reference/):**
 
-```bash
-# install the CLI — requires Python 3.10-3.13 (NOT 3.14+ yet)
-uv tool install runpod-flash
-pip install runpod-flash
-# on Python 3.14+ the install fails — pin an older interpreter for the tool:
-uv tool install --python 3.13 runpod-flash
+| Need | Read |
+|------|------|
+| Install, auth, `flash init`, and the full `flash` command list | [reference/setup-and-cli.md](reference/setup-and-cli.md) |
+| `Endpoint(...)` constructor params, `NetworkVolume`/`PodTemplate`/`EndpointJob`, GPU & CPU enum tables | [reference/api.md](reference/api.md) |
+| Worked patterns — choosing a model, warm-worker model loading, CPU→GPU pipeline, parallel calls | [reference/patterns.md](reference/patterns.md) |
 
-# auth option 1: browser-based login (saves token locally)
-flash login
-# headless: print URL instead of opening a browser
-flash login --no-open
-# max seconds to wait for browser auth (default 600)
-flash login --timeout 300
-
-# auth option 2: API key via environment variable
-export RUNPOD_API_KEY=your_key
-
-# scaffold a new project in ./my-project (writes AGENTS.md + CLAUDE.md)
-flash init my-project
-# scaffold in the current directory
-flash init .
-# overwrite existing files (-f)
-flash init my-project --force
-# update the CLI to the latest version
-flash update
-# pin a specific version (-V also works)
-flash update --version 1.16.0
-```
-
-`flash init` writes `AGENTS.md` (+ a `CLAUDE.md` symlink). To add them to an existing project: `python -c "from runpod_flash.rules import install_agent_files; from pathlib import Path; install_agent_files(Path.cwd())"`.
-
-**Auth precedence:** a set `RUNPOD_API_KEY` env var **overrides** the saved `flash login` token, so an exported bad/expired key silently beats a good login — a common trap (see Gotcha #13).
-
-## CLI
-
-`flash dev` is the canonical dev-server command (`flash run` still works as a hidden alias).
-
-```bash
-# local server at :8888, but functions run on REMOTE GPU/CPU workers;
-# hot-reloads on save and streams the worker's logs live to your terminal
-flash dev
-# same, but pre-provision endpoints (no cold start on first call)
-flash dev --auto-provision
-# custom port/host; --reload/--no-reload toggles autoreload
-flash dev --port 9000 --host 0.0.0.0
-# build + deploy (auto-selects env if only one)
-flash deploy
-# build + deploy to "staging" environment
-flash deploy --env staging
-# deploy a specific app to an environment
-flash deploy --app my-app --env prod
-# build + launch local preview in Docker
-flash deploy --preview
-# build flags below also apply to deploy
-flash deploy --no-deps --python-version 3.11
-# list deployment environments
-flash env list
-# create "staging" environment
-flash env create staging
-# show environment details + resources
-flash env get staging
-# delete environment + tear down resources
-flash env delete staging
-# list flash apps in your account
-flash app list
-# create a flash app
-flash app create my-app
-# show an app's environments + builds
-flash app get my-app
-# delete an app and all its resources
-flash app delete my-app
-# list all active endpoints
-flash undeploy list
-# remove a specific endpoint
-flash undeploy my-endpoint
-# remove all endpoints (--interactive/-i to pick, --force/-f to skip prompts)
-flash undeploy --all
-# remove endpoints whose code no longer exists locally
-flash undeploy --cleanup-stale
-
-# build-only (no deploy) — mainly for debugging the artifact; `flash deploy` builds for you
-# package the artifact without deploying (1500MB limit; torch auto-excluded)
-flash build
-# build flags: --no-deps, --exclude pkg1,pkg2, --output name.tar.gz, --python-version 3.11
-flash build --no-deps
-```
+Quick start: `uv tool install runpod-flash` → `flash login` (or `export RUNPOD_API_KEY=...`) → `flash init my-project` → `flash dev`. Details in [reference/setup-and-cli.md](reference/setup-and-cli.md).
 
 ## Dev vs Deploy
 
@@ -147,6 +68,8 @@ curl -s "$URL/main/predict" -d '{"data": {...}}'               # dispatches to t
   redeploy. Add `--auto-provision` to skip the first-call cold start. `kill %1` when done.
 
 ## Endpoint: Three Modes
+
+Full constructor params and the GPU/CPU enum tables are in [reference/api.md](reference/api.md).
 
 ### Mode 1: Your Code (Queue-Based Decorator)
 
@@ -230,7 +153,8 @@ The table above is *how* the mode is picked from params. *When* to reach for `im
 
 Default to writing Python (decorator / routes) — it runs arbitrary code with
 `dependencies=[...]`/`system_dependencies=[...]` and needs no Dockerfile. Even large
-HuggingFace models stay in decorator mode (weights stream at runtime — see *Loading ML models*).
+HuggingFace models stay in decorator mode (weights stream at runtime — see
+[reference/patterns.md → Loading ML models](reference/patterns.md#loading-ml-models-warm-workers)).
 Reach for `image=` **only** when you need:
 
 - **a pre-built inference server** — vLLM, TensorRT-LLM (`image="vllm/vllm-openai:latest"`, or `runpod/worker-vllm`, `runpod/worker-comfy`)
@@ -241,227 +165,6 @@ Reach for `image=` **only** when you need:
 Trade-off: `image=` mode **can't run arbitrary Python** (the image owns all logic) and the
 image must implement a Runpod Serverless handler. Full list + examples:
 https://docs.runpod.io/flash/custom-docker-images
-
-## Endpoint Constructor
-
-```python
-Endpoint(
-    name="endpoint-name",                  # required (unless id= set)
-    id=None,                               # connect to existing endpoint
-    gpu=GpuGroup.AMPERE_80,               # GpuGroup tier, GpuType model, or list of either (default: GpuGroup.ANY)
-    cpu=CpuInstanceType.CPU5C_4_8,        # CPU type (mutually exclusive with gpu)
-    workers=5,                             # shorthand for (0, 5)
-    workers=(1, 5),                        # explicit (min, max)
-    max_concurrency=1,                     # concurrent requests per worker (default 1)
-    idle_timeout=60,                       # seconds before scale-down (default: 60)
-    dependencies=["torch"],                # pip packages for remote exec
-    system_dependencies=["ffmpeg"],        # apt-get packages
-    image="org/image:tag",                 # pre-built Docker image (client mode)
-    env={"KEY": "val"},                    # environment variables
-    volume=NetworkVolume(...),             # persistent storage
-    datacenter=DataCenter.US_CA_2,         # DataCenter | list | str (default: None)
-    gpu_count=1,                           # GPUs per worker
-    template=PodTemplate(containerDiskInGb=100),
-    flashboot=True,                        # fast cold starts
-    accelerate_downloads=True,             # speed up model/file downloads (default True)
-    min_cuda_version=CudaVersion.V12_8,    # minimum CUDA version (default 12.8)
-    scaler_type=ServerlessScalerType.QUEUE_DELAY,  # default unset; or REQUEST_COUNT
-    scaler_value=4,                        # scaler threshold (default 4)
-    execution_timeout_ms=0,                # max execution time (0 = unlimited)
-)
-```
-
-- `gpu=` and `cpu=` are mutually exclusive
-- `gpu=` accepts a `GpuGroup`, a `GpuType`, or a list of either (see GPU Types below)
-- `workers=5` means `(0, 5)`. Default is `(0, 1)`
-- `max_concurrency` -- requests handled concurrently per worker (default 1). Raise it for I/O-bound LB routes so one worker serves multiple requests
-- `idle_timeout` default is **60 seconds**
-- `flashboot=True` (default) -- enables fast cold starts via snapshot restore
-- `gpu_count` -- GPUs per worker (default 1), use >1 for multi-GPU models
-- `datacenter` -- a `DataCenter` enum, list, or string; defaults to `None` (unset)
-- `scaler_type` -- defaults to `QUEUE_DELAY` for queue-based endpoints and `REQUEST_COUNT` for load-balanced endpoints; pass `ServerlessScalerType.QUEUE_DELAY` or `REQUEST_COUNT` to override
-- `DataCenter`, `CudaVersion`, and `ServerlessScalerType` are importable from `runpod_flash`
-
-### NetworkVolume
-
-```python
-NetworkVolume(name="my-vol", size=100)  # size in GB, default 100
-```
-
-### PodTemplate
-
-```python
-PodTemplate(
-    containerDiskInGb=64,    # container disk size (default 64)
-    dockerArgs="",           # extra docker arguments
-    ports="",                # exposed ports
-    startScript="",          # script to run on start
-)
-```
-
-## EndpointJob
-
-Returned by `ep.run()` and `ep.runsync()` in client mode.
-
-```python
-job = await ep.run({"data": [1, 2, 3]})
-await job.wait(timeout=120)        # poll until done
-print(job.id, job.output, job.error, job.done)
-await job.cancel()
-```
-
-## GPU Types
-
-`gpu=` accepts a `GpuGroup` (a supply pool by VRAM tier), a `GpuType` (a pinned GPU model), or a list of either. `GpuGroup` picks the cheapest available GPU within a tier; `GpuType` pins a specific model.
-
-### GpuGroup (supply pool)
-
-| Enum | GPU | VRAM |
-|------|-----|------|
-| `ANY` | any | varies |
-| `AMPERE_16` | RTX A4000 / A4500 / RTX 4000 Ada / RTX 2000 Ada | 16GB |
-| `AMPERE_24` | RTX A5000 / L4 / RTX 3090 | 24GB |
-| `AMPERE_48` | A40 / RTX A6000 | 48GB |
-| `AMPERE_80` | A100 (PCIe / SXM4) | 80GB |
-| `ADA_24` | RTX 4090 | 24GB |
-| `ADA_32_PRO` | RTX 5090 | 32GB |
-| `ADA_48_PRO` | RTX 6000 Ada / L40 / L40S | 48GB |
-| `ADA_80_PRO` | H100 PCIe (80GB) / H100 HBM3 (80GB) / H100 NVL (94GB) | 80GB+ |
-| `HOPPER_141` | H200 | 141GB |
-| `BLACKWELL_96` | RTX PRO 6000 Blackwell | 96GB |
-| `BLACKWELL_180` | B200 | 180GB |
-
-### GpuType (pinned model)
-
-Pin an exact GPU model. Members include `NVIDIA_GEFORCE_RTX_4090`, `NVIDIA_GEFORCE_RTX_5090`, `NVIDIA_RTX_6000_ADA_GENERATION`, `NVIDIA_H100_80GB_HBM3`, `NVIDIA_A100_80GB_PCIe`, `NVIDIA_A100_SXM4_80GB`, `NVIDIA_H200`, `NVIDIA_B200`, the `NVIDIA_RTX_PRO_6000_BLACKWELL_*` editions (Server / Workstation / Max-Q), and the Ampere/Ada RTX A-series models (`NVIDIA_RTX_A4000`, `A4500`, `A5000`, `A6000`, `NVIDIA_L4`, `NVIDIA_A40`, `NVIDIA_GEFORCE_RTX_3090`, `NVIDIA_RTX_4000_ADA_GENERATION`, `NVIDIA_RTX_2000_ADA_GENERATION`).
-
-```python
-from runpod_flash import Endpoint, GpuType
-
-@Endpoint(name="pinned", gpu=GpuType.NVIDIA_GEFORCE_RTX_4090, dependencies=["torch"])
-async def report_gpu(data):
-    import torch
-    return {"gpu": torch.cuda.get_device_name(0)}
-```
-
-## CPU Types (CpuInstanceType)
-
-| Enum | vCPU | RAM | Max Disk | Type |
-|------|------|-----|----------|------|
-| `CPU3G_1_4` | 1 | 4GB | 10GB | General |
-| `CPU3G_2_8` | 2 | 8GB | 20GB | General |
-| `CPU3G_4_16` | 4 | 16GB | 40GB | General |
-| `CPU3G_8_32` | 8 | 32GB | 80GB | General |
-| `CPU3C_1_2` | 1 | 2GB | 10GB | Compute |
-| `CPU3C_2_4` | 2 | 4GB | 20GB | Compute |
-| `CPU3C_4_8` | 4 | 8GB | 40GB | Compute |
-| `CPU3C_8_16` | 8 | 16GB | 80GB | Compute |
-| `CPU5C_1_2` | 1 | 2GB | 15GB | Compute (5th gen) |
-| `CPU5C_2_4` | 2 | 4GB | 30GB | Compute (5th gen) |
-| `CPU5C_4_8` | 4 | 8GB | 60GB | Compute (5th gen) |
-| `CPU5C_8_16` | 8 | 16GB | 120GB | Compute (5th gen) |
-
-```python
-from runpod_flash import Endpoint, CpuInstanceType
-
-@Endpoint(name="cpu-work", cpu=CpuInstanceType.CPU5C_4_8, workers=5, dependencies=["pandas"])
-async def process(data):
-    import pandas as pd
-    return pd.DataFrame(data).describe().to_dict()
-```
-
-## Common Patterns
-
-### Choosing a model
-
-Flash has **no model catalog** — name a HuggingFace repo id in code and it downloads to the
-worker at runtime (see *Loading ML models*). Other sources: a custom image's `MODEL_NAME` env
-(vLLM etc.), a URL, or your own weights on a NetworkVolume.
-
-- **Start with the smallest model that proves the pipeline** (`gpt2`, `stabilityai/sd-turbo`,
-  a 0.5–1B variant) — it provisions in seconds, so you validate the `@Endpoint` wiring, deps,
-  GPU, and I/O fast under `flash dev`, then change *only the id string* to the real model.
-- **Match the model to GPU VRAM** (fp16 ≈ params × 2 bytes + overhead):
-
-  | Model (fp16) | ~VRAM | `gpu=` |
-  |---|---|---|
-  | ≤3B / SD1.5 / sd-turbo | ≤8 GB | `GpuGroup.AMPERE_16` or `GpuGroup.ADA_24` |
-  | 7–8B | ~16 GB | `GpuGroup.ADA_24` or `GpuGroup.AMPERE_24` |
-  | 13B | ~28 GB | `GpuGroup.ADA_32_PRO` or `GpuGroup.AMPERE_48` |
-  | 70B | ~140 GB | `GpuGroup.HOPPER_141` / `GpuGroup.BLACKWELL_180` (or quantize) |
-
-- A ready-made hosted model with **no code** is [Runpod Public Endpoints / Hub](https://docs.runpod.io/hub) — a different product, not Flash.
-
-### Loading ML models (warm workers)
-
-Model **weights are not part of the 1.5GB build artifact** — that cap is your code + pip
-deps (torch is auto-excluded). Weights download on the worker at runtime (HuggingFace,
-etc.), so **model size is not a Flash limit**. Two things make this fast and cheap:
-
-- **Load once per worker, not per request** — use a *class* `@Endpoint`: `__init__` loads
-  the model into VRAM once when the worker starts; methods handle requests and reuse it.
-- **Persist the cache on a NetworkVolume** so a cold worker reuses downloaded weights
-  instead of re-pulling them every cold start.
-
-```python
-from runpod_flash import Endpoint, GpuType, DataCenter, NetworkVolume
-
-vol = NetworkVolume(name="model-cache", size=100, datacenter=DataCenter.US_GA_2)
-
-@Endpoint(
-    name="sd",
-    gpu=GpuType.NVIDIA_GEFORCE_RTX_5090,
-    workers=(0, 3),
-    idle_timeout=300,                                # keep workers warm between calls
-    datacenter=DataCenter.US_GA_2,
-    volume=vol,
-    env={"HF_HUB_CACHE": "/runpod-volume/models"},   # cache weights on the volume
-    dependencies=["torch", "diffusers", "transformers", "accelerate"],
-)
-class SD:
-    def __init__(self):                              # runs ONCE per worker
-        import torch
-        from diffusers import StableDiffusionPipeline
-        self.pipe = StableDiffusionPipeline.from_pretrained(
-            "runwayml/stable-diffusion-v1-5", torch_dtype=torch.float16
-        ).to("cuda")
-
-    async def generate(self, prompt: str) -> dict:   # per request, reuses self.pipe
-        image = self.pipe(prompt=prompt).images[0]
-        image.save("/runpod-volume/out.png")         # /runpod-volume/ persists; elsewhere is wiped
-        return {"saved": "/runpod-volume/out.png"}
-```
-
-- **Gated** models: pass `env={"HF_TOKEN": "..."}`.
-- `workers=(1, n)` keeps one worker warm (no cold start on the first request); `(0, n)` scales to zero and cold-starts after `idle_timeout`.
-- The class form is the cleanest way to load once. In function-form `@Endpoint` the same effect needs the module-global cache trick (see Gotcha #11); the class form is preferred for real inference.
-
-### CPU + GPU Pipeline
-
-```python
-from runpod_flash import Endpoint, GpuGroup, CpuInstanceType
-
-@Endpoint(name="preprocess", cpu=CpuInstanceType.CPU5C_4_8, workers=5, dependencies=["pandas"])
-async def preprocess(raw):
-    import pandas as pd
-    return pd.DataFrame(raw).to_dict("records")
-
-@Endpoint(name="infer", gpu=GpuGroup.AMPERE_80, workers=5, dependencies=["torch"])
-async def infer(clean):
-    import torch
-    t = torch.tensor([[v for v in r.values()] for r in clean], device="cuda")
-    return {"predictions": t.mean(dim=1).tolist()}
-
-async def pipeline(data):
-    return await infer(await preprocess(data))
-```
-
-### Parallel Execution
-
-```python
-import asyncio
-results = await asyncio.gather(compute(a), compute(b), compute(c))
-```
 
 ## Gotchas
 
@@ -475,7 +178,7 @@ results = await asyncio.gather(compute(a), compute(b), compute(c))
 8. **Auto GPU switching requires workers >= 5** -- pass a list of GPU types (e.g. `gpu=[GpuGroup.ADA_24, GpuGroup.AMPERE_80]`) and set `workers=5` or higher. The platform only auto-switches GPU types based on supply when max workers is at least 5.
 9. **`runsync` timeout is 60s** -- cold starts can exceed 60s. Use `ep.runsync(data, timeout=120)` for first requests or use `ep.run()` + `job.wait()` instead.
 10. **Request body shape: QB spreads input as kwargs, LB is top-level** -- Load-balanced routes (`@api.post(...)`) take the handler arg at the top level: `{"data": {...}}`. Queue-based endpoints (bare `@Endpoint`, hit via `.../run` or `.../runsync`) call the handler as **`handler(**job_input)`** — the request's `input` dict is spread as keyword arguments, so the handler's parameter names must match the input keys: a handler `def transcribe(input_data: dict)` wants `{"input": {"input_data": {...}}}`, and `def read(input: dict)` wants `{"input": {"input": {...}}}` (a mismatch fails with `got an unexpected keyword argument …`, verified 2026-07-10 via worker logs). Use `**kwargs` if the handler ignores the payload. Also: an **empty** `input` (`{"input": {}}`) is rejected by the worker SDK as `Job has missing field(s): id or input` — always send at least one key. The flash client (`ep.runsync(x)`, `api.post(...)`) hides the spreading — it's a trap for raw HTTP/external callers. See *Autonomous Dev Loop*.
-11. **Load a model once per worker (not per call)** -- for real inference use a class `@Endpoint` whose `__init__` loads the model once per worker (see *Common Patterns → Loading ML models*). In function-form, reconcile with #1 by caching in a module global *inside* the body so it works under both `flash dev` and `deploy`:
+11. **Load a model once per worker (not per call)** -- for real inference use a class `@Endpoint` whose `__init__` loads the model once per worker (see [reference/patterns.md → Loading ML models](reference/patterns.md#loading-ml-models-warm-workers)). In function-form, reconcile with #1 by caching in a module global *inside* the body so it works under both `flash dev` and `deploy`:
     ```python
     global _MODEL
     try: _MODEL
@@ -488,6 +191,7 @@ results = await asyncio.gather(compute(a), compute(b), compute(c))
 
 ## Resources
 
+- Setup & CLI: [reference/setup-and-cli.md](reference/setup-and-cli.md) · API & compute enums: [reference/api.md](reference/api.md) · Patterns: [reference/patterns.md](reference/patterns.md)
 - Flash source: https://github.com/runpod/flash
 - Runnable examples: https://github.com/runpod/flash-examples — clone and adapt the closest one
 - Package (PyPI): https://pypi.org/project/runpod-flash/

@@ -25,29 +25,7 @@ connected (typed params, structured errors, no shell quoting).
 
 ## Connect
 
-**Hosted (recommended)** — no API key stored on disk; authenticates with the
-"Sign in with Runpod" OAuth flow on first connect:
-
-```bash
-# guided installer — detects your agents and configures them
-npx @runpod/mcp-server@latest add
-
-# or configure a single client by hand (Claude Code shown)
-claude mcp add --transport http runpod -s user https://mcp.getrunpod.io/
-```
-
-Prefer your own key over OAuth? Append
-`--header "Authorization: Bearer $RUNPOD_API_KEY"` — the server forwards it to the
-Runpod API directly.
-
-**Local (stdio)** — runs the server as a subprocess with your key:
-
-```bash
-claude mcp add runpod -s user -e RUNPOD_API_KEY=YOUR_KEY -- npx -y @runpod/mcp-server
-```
-
-After connecting, reconnect the client (in Claude Code, `/mcp`) and the tools
-appear in the session.
+Two ways to connect — **hosted** (OAuth, no key on disk; `npx @runpod/mcp-server@latest add`) or **local stdio** (subprocess with your key). Exact commands, key-forwarding, and client config: **[reference/connect.md](reference/connect.md)**. After connecting, reconnect the client (in Claude Code, `/mcp`) so the tools load.
 
 **Verify it's live (do this before relying on MCP):** in Claude Code run `/mcp` —
 `runpod` should show **Connected**, not *Needs authentication* (if it's the latter,
@@ -55,6 +33,22 @@ sign in there first; the bundled plugin server registers the URL but stays inert
 until you authenticate). Confirm a real call works by asking for `list-endpoints`.
 If the `runpod` tools aren't present at all, the server isn't connected — (re)run the
 install above, or fall back to **runpodctl** for this task.
+
+**Check the server version (which REST API it drives):** the MCP `initialize` handshake
+returns it in `serverInfo.version`. `/mcp` in Claude Code shows it, or probe the hosted
+server directly:
+
+```bash
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}' \
+| curl -s -X POST https://mcp.getrunpod.io/ -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" -H "Authorization: Bearer $RUNPOD_API_KEY" -d @-
+# → serverInfo.version e.g. "2.0.0 [RUNPOD_REST_VERSION=v2]"  (verified 2026-07-14)
+```
+
+The MCP server drives Runpod's **REST v2** internally (`RUNPOD_REST_VERSION=v2`), so it
+handles infra correctly where the **public `rest.runpod.io/v1`** control API is buggy —
+notably CPU serverless endpoints (see the runpodctl skill). Prefer MCP or `runpodctl`
+over hand-rolled `rest.runpod.io/v1` calls for creating endpoints.
 
 ## Tool surface
 
