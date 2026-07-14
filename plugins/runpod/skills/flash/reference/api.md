@@ -40,6 +40,11 @@ Endpoint(
 - `scaler_type` -- defaults to `QUEUE_DELAY` for queue-based endpoints and `REQUEST_COUNT` for load-balanced endpoints; pass `ServerlessScalerType.QUEUE_DELAY` or `REQUEST_COUNT` to override
 - `DataCenter`, `CudaVersion`, and `ServerlessScalerType` are importable from `runpod_flash`
 
+> **These defaults are flash-SDK defaults, and differ from the Runpod platform defaults**
+> (Console / `runpodctl` / API): `idle_timeout` 60s here vs **5s** on the platform,
+> `workers` (0, 1) here vs max **3** on the platform, `execution_timeout` unlimited here vs
+> **600s** on the platform. When you read a default, note which layer it belongs to.
+
 ### NetworkVolume
 
 ```python

@@ -20,6 +20,16 @@ worker at runtime (see *Loading ML models* below). Other sources: a custom image
 
 - A ready-made hosted model with **no code** is [Runpod Public Endpoints / Hub](https://docs.runpod.io/hub) — a different product, not Flash.
 
+> **Big model? Naming it still works — but mind the re-download.** Model size is not a
+> flash limit: naming a large HF repo streams the weights to the worker at runtime. The
+> catch is that a scaled-to-zero worker **re-downloads on every cold start**. For a large
+> model you call often, cache it so it isn't re-pulled each time — persist to a
+> **NetworkVolume** (see *Loading ML models* below), or on the runpodctl/serverless side use
+> the **HF model cache** (`--model-reference`) or bake it into the image. This is the same
+> tradeoff as the delivery-methods table in
+> [`runpodctl/reference/model-caching.md`](../../runpodctl/reference/model-caching.md): easy
+> streaming vs. faster/cheaper cold starts for reused weights — not a contradiction.
+
 ## Loading ML models (warm workers)
 
 Model **weights are not part of the 1.5GB build artifact** — that cap is your code + pip

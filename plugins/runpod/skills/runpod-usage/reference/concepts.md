@@ -78,6 +78,13 @@ Reduce cold starts by:
 - **Max workers** — concurrency cap and cost safety limit (default 3). Set ~20%
   above expected peak concurrency to absorb spikes.
 
+> **These are the platform defaults** (Console / `runpodctl` / API). The **flash SDK**
+> applies its *own* defaults for the same settings — `idle_timeout` **60s** (not 5s),
+> `workers` **(0, 1)** i.e. max 1 (not 3), `execution_timeout` unlimited (not 600s). So a
+> default value depends on which layer you configured through; don't assume the flash
+> number holds for a platform-created endpoint or vice-versa. See
+> [`../../flash/reference/api.md`](../../flash/reference/api.md).
+
 Auto-scaling type decides *when* to add workers:
 
 - **Queue delay** — add workers when requests wait longer than a threshold
