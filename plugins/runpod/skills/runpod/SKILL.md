@@ -47,31 +47,38 @@ runpodctl user                            # succeeds ⇒ a key in ~/.runpod/conf
 ```
 Also check the MCP: in Claude Code `/mcp` should show `runpod` **Connected**.
 
-**If nothing is set up, stop and ask the user to do ONE of these:**
-- **`flash login`** — browser OAuth that **saves a real Runpod API key to `~/.runpod/config.toml`**
-  (the file runpodctl + flash both read). Easiest for a human; needs a browser.
-- **Provide a key** — `export RUNPOD_API_KEY=…` (from https://console.runpod.io/user/settings).
-  Best for a headless agent (non-interactive).
+**Lead with a Runpod API key — it unlocks EVERY tool. Do NOT default to MCP OAuth.**
+A single `RUNPOD_API_KEY` authenticates **runpodctl + flash + the hosted MCP** (pass it as
+`--header "Authorization: Bearer $RUNPOD_API_KEY"`). The MCP's own **"Sign in with Runpod"
+OAuth authenticates the MCP *alone*** — runpodctl and flash stay unauthed, so you hit a wall
+the moment a task needs a CLI-only capability (Hub, `send`/`receive`, SSH, `doctor`, model
+cache/Model Repository, CPU endpoints). ⚠️ **OAuth-only is a half-setup** — always prefer
+getting the key.
 
-**One key covers everything.** That single `RUNPOD_API_KEY` (whether from `flash login` or the
-Console) makes **runpodctl, flash, and the local-stdio MCP** work, and the **hosted MCP** too via
-`--header "Authorization: Bearer $RUNPOD_API_KEY"`. The only alternative for the hosted MCP is its
-own **`/mcp` → "Sign in with Runpod"** OAuth — but that authenticates the MCP *only*, not the CLIs.
-So: **one key = full control**; OAuth sign-in is just an MCP convenience.
+**If nothing is set up, stop and get a key (in this order of preference):**
+1. **`flash login`** — browser OAuth that **saves a real API key to `~/.runpod/config.toml`**
+   (runpodctl + flash both read it; you can also hand it to the MCP as a Bearer header). One
+   step, unlocks everything. Human-only (needs a browser).
+2. **`export RUNPOD_API_KEY=…`** — grab one at https://console.runpod.io/user/settings. Same
+   full unlock; best for a headless agent (non-interactive).
+3. **MCP OAuth only** (`/mcp` → *Sign in with Runpod*) — *last resort, MCP-only work.* Fast,
+   but leaves runpodctl + flash blocked; you'll still need a key for anything the MCP can't do.
+
+Verify the key worked: `runpodctl user` returns your account (and the MCP accepts the same
+key via Bearer). **Don't proceed on a partial auth** — if only the MCP is signed in, get a
+key before the first CLI-only step instead of discovering the wall mid-task.
 
 What to do:
 1. **A lane is already connected** — MCP tools callable, or `runpodctl user` works → use it.
-2. **MCP installed but unauthenticated** — common right after installing this plugin (it bundles
-   the hosted server, but the tools stay inert until sign-in). **Don't silently ignore it and
-   drop to a fallback** — tell the user to authenticate: Claude Code `/mcp` → `runpod` → *Sign in
-   with Runpod*; Codex `codex mcp add runpod --transport http https://mcp.getrunpod.io/`. It's the
-   nicer lane once live.
-3. **Nothing connected** — **stop and ask the user to authenticate** (don't guess or fake a
-   result): **`flash login`** (browser OAuth → saves the key to `~/.runpod/config.toml`) **or**
-   `export RUNPOD_API_KEY=…` from the Console (headless). Either unlocks runpodctl + flash; add the
-   hosted-MCP sign-in (or the Bearer header) if they want structured tools. Missing a CLI? Install:
-   `curl -sSL https://cli.runpod.net | bash` (runpodctl) · `uv tool install runpod-flash` (flash) ·
-   `npx @runpod/mcp-server@latest add` (MCP).
+   But if *only* the MCP is authed (OAuth), still get a key before any CLI-only capability.
+2. **MCP installed but unauthenticated** — common right after installing this plugin. The best
+   fix is **still a key**: `flash login` or `export RUNPOD_API_KEY=…`, then add the hosted MCP
+   with `--header "Authorization: Bearer $RUNPOD_API_KEY"` — that auths the MCP **and** unlocks
+   the CLIs in one move. Only fall back to `/mcp` → *Sign in* if the user explicitly just wants
+   MCP right now (and tell them the CLIs stay unauthed until a key is set).
+3. **Nothing connected** — **stop and get a key** (order above); don't guess or fake a result.
+   Missing a CLI? Install: `curl -sSL https://cli.runpod.net | bash` (runpodctl) ·
+   `uv tool install runpod-flash` (flash) · `npx @runpod/mcp-server@latest add` (MCP).
 4. **Only a fallback lane is available** — e.g. runpodctl works but they wanted MCP (or vice-
    versa). **Use what works to make progress, and offer the one-time setup** that gives them the
    intended lane, so it's smoother next time. Progress now, but nudge toward the proper setup.

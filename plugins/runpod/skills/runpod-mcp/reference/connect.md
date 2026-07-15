@@ -1,19 +1,27 @@
 # Connecting the Runpod MCP server
 
-**Hosted (recommended)** — no API key stored on disk; authenticates with the
-"Sign in with Runpod" OAuth flow on first connect:
+> **If you also use runpodctl/flash, connect the hosted MCP with your API key (Bearer),
+> not OAuth.** OAuth authenticates the MCP *only* — the CLIs stay unauthed. A single
+> `RUNPOD_API_KEY` used as a Bearer header auths the MCP **and** unlocks runpodctl + flash.
+> See the router skill's "First run" for the full auth order.
+
+**Hosted + API key (recommended for full-tool access)** — one key drives everything:
 
 ```bash
-# guided installer — detects your agents and configures them
+claude mcp add --transport http runpod -s user https://mcp.getrunpod.io/ \
+  --header "Authorization: Bearer $RUNPOD_API_KEY"
+```
+
+**Hosted + OAuth** — no key on disk, but MCP-only (CLIs stay unauthed). Fine if you only
+need the MCP this session:
+
+```bash
+# guided installer — detects your agents and configures them (OAuth on first connect)
 npx @runpod/mcp-server@latest add
 
 # or configure a single client by hand (Claude Code shown)
 claude mcp add --transport http runpod -s user https://mcp.getrunpod.io/
 ```
-
-Prefer your own key over OAuth? Append
-`--header "Authorization: Bearer $RUNPOD_API_KEY"` — the server forwards it to the
-Runpod API directly.
 
 **Local (stdio)** — runs the server as a subprocess with your key:
 
