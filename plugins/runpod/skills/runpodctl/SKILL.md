@@ -22,9 +22,20 @@ Manage GPU pods, serverless endpoints, templates, volumes, and models.
 
 `curl -sSL https://cli.runpod.net | bash` (any platform) or `brew install runpod/runpodctl/runpodctl`. Manual binaries, Windows/Linux steps, and the version caveat (`--model-reference` + multi-volume need **v2.4.0+**): **[reference/install.md](reference/install.md)**.
 
+> **Always get on the latest runpodctl first — don't use whatever's already installed.**
+> Run `runpodctl version`, then `runpodctl update` (or reinstall from the
+> [latest release](https://github.com/runpod/runpodctl/releases)) **before doing any work**.
+> Older builds silently lack newer flags/behaviors (e.g. `--model-reference` doesn't exist
+> before v2.4.0) and produce confusing downstream errors — and the Homebrew tap can lag
+> well behind. Pin to one recent version for the whole task; **do not switch between an old
+> and a new binary mid-task** (that mid-task version flip-flop is a known failure). Verify
+> once: `runpodctl version` shows the current build before you continue.
+
 ## Quick start
 
 ```bash
+runpodctl update                    # FIRST: get on the latest build — old versions cause confusing errors
+runpodctl version                   # confirm the current version before doing any work
 export RUNPOD_API_KEY=your_key      # Non-interactive auth (agents) — runpodctl reads this
 runpodctl doctor                    # Interactive first-time setup (API key + SSH) — for humans
 runpodctl --help                    # See current top-level commands
