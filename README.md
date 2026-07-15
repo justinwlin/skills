@@ -105,6 +105,22 @@ repo has a newer commit. If it hasn't picked up a change yet, update manually:
 | **Codex** | `codex plugin marketplace upgrade runpod` |
 | **skills.sh** | re-run `npx skills add runpod/skills` |
 
+## Uninstall
+
+Remove the plugin (and, where applicable, the marketplace it came from):
+
+| Client | Uninstall |
+| --- | --- |
+| **Claude Code** | `/plugin uninstall runpod@runpod`, then `/plugin marketplace remove runpod` |
+| **Codex** | `codex plugin marketplace remove runpod` |
+| **skills.sh** | `npx skills remove runpod` |
+
+If a command reports a name mismatch, list what's installed first —
+`/plugin marketplace list` (Claude Code) · `codex plugin marketplace list` (Codex) ·
+`npx skills list` (skills.sh) — and use the name shown. Removing the marketplace also drops
+the bundled hosted-MCP registration it added; if you configured the MCP separately, remove
+that too (Claude Code: `claude mcp remove runpod`).
+
 ## What's inside
 
 Start with the **`runpod`** router; it points at the right lane.
