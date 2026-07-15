@@ -119,7 +119,7 @@ prebuilt template / Hub worker over building from scratch** → provision → se
 
 ## Worked examples (golden paths)
 
-**Nineteen** end-to-end, **live-verified** scenarios live in
+**Twenty** end-to-end, **live-verified** scenarios live in
 [`./golden-paths/README.md`](./golden-paths/README.md) — the yardstick for "can
 an agent finish the job", with real commands + observed output to copy from. When a
 task matches one, **open its golden path first** instead of re-deriving it:

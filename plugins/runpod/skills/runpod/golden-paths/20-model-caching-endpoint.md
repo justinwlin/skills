@@ -6,20 +6,18 @@ and not on a network volume** — instead attach a HuggingFace model with
 worker loads it straight from the standard HF cache. Prove it end to end with a **tiny
 model** (`Qwen/Qwen2.5-0.5B-Instruct`) so it provisions in seconds and costs a fraction of
 a cent, then swap only the model URL for a real one.
-**Status:** ⚠️ PARTIALLY VERIFIED — two live runs 2026-07-14 (runpodctl v2.7.1). **Deploy
-path confirmed:** `serverless create --hub-id <worker-vllm> --model-reference …:main`
-returned an endpoint id with **no baked image and no network volume**, and Runpod resolved
-`:main` to a pinned commit — real response:
-`"modelReferences":["https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct:7ae557604adf67be50417f59c2c2f167def9a775"]`,
-`"gpuIds":"ADA_24"`. **Inference NOT confirmed:** run 1 the worker stayed `initializing`
->20 min (first-ever image pull) and never readied; run 2 it readied in **162s** (image
-warm on the pool) but the worker-vLLM engine was extremely slow to serve — a sync
-`/openai` call hit a Cloudflare **524** (>100s edge timeout on the first-request model
-load), and an async `/run` job then sat `IN_QUEUE` ~15 min behind a "ready" worker
-(`inProgress:0` — the "ready but not dispatching" symptom) and was only `running` at
-teardown. No `COMPLETED` output was captured, so the on-host cache path is still
-unconfirmed. Total spend across both runs ≈ $0.64. Re-run (ideally with worker logs via
-MCP/Console) to close it.
+**Status:** ✅ COVERED — live-verified 2026-07-15 (runpodctl v2.7.1, diagnosed via the
+Runpod MCP worker logs). `serverless create --hub-id <worker-vllm> --model-reference …:main`
+deployed with **no baked image and no network volume**; Runpod pinned `:main` to commit
+`7ae557604adf…`. An async `/run` job returned **`COMPLETED`** with real output
+(`"Hello. That's all there is to it."`, `usage {input:7, output:10}`), `delayTime` ~105s
+(first-job pickup + vLLM boot), `executionTime` ~1.5s. **Cache-hit confirmed in the worker
+logs:** vLLM loaded the 0.92 GiB checkpoint in **0.55s** ("Time spent downloading weights …
+0.55 seconds") at the pinned revision — i.e. the model was already present via
+`--model-reference`, not freshly pulled. Earlier same-day attempts failed only on infra
+timing, not the feature: a first-ever ~10 GB image pull (>20 min) and a sync `/openai` call
+that hit a Cloudflare **524** (>100s edge timeout on cold load) — both avoided by using
+async `/run` + patience. Total spend across all runs ≈ $0.69.
 **Lane(s):** `runpodctl serverless` (`--model-reference`, **v2.4.0+**) + a vLLM worker
 (Hub `--hub-id` or a serverless template) + the OpenAI-compatible invoke route.
 
@@ -96,18 +94,20 @@ curl -s -X POST "https://api.runpod.ai/v2/<endpoint-id>/openai/v1/chat/completio
 ```
 
 ## Verify it works
-Results from the 2026-07-14 live run:
+Results from the 2026-07-15 live run (worker logs read via the Runpod MCP `stream-worker-logs`):
 1. ✅ `runpodctl version` 2.7.1 and `--model-reference` present in `create --help`.
 2. ✅ `serverless create … --model-reference …` returned an endpoint id **without** a baked
-   image or a network volume, and resolved `:main` to a pinned commit
-   (`…Instruct:7ae557604adf…`) — confirming the model reference was accepted and pinned.
-3. ❌ **Not reached:** `/health` never got `workers.ready >= 1` (worker stuck `initializing`
-   >20 min; the queued `/openai/v1/chat/completions` request sat `inQueue:1`). Torn down
-   before a completion. Re-run and paste a `COMPLETED`/200 chat response here to close this.
-4. ⏳ **Cache evidence still open:** the `/runpod-volume/huggingface-cache/hub/` load path is
-   Runpod's documented behavior but was **not** independently confirmed on this run (no
-   worker ran). Confirm via worker logs or a fast warm-call once a worker is ready.
-5. ⏳ Cold/warm latency + spend: pending a successful worker.
+   image or a network volume, and resolved `:main` to a pinned commit (`…7ae557604adf…`).
+3. ✅ Async `/run` job → **`COMPLETED`** with real output (`"Hello. That's all there is to
+   it."`), `delayTime` ~105s, `executionTime` ~1.5s — the worker served the cached model.
+4. ✅ **Cache-hit confirmed:** the vLLM worker logged `Starting to load model
+   Qwen/Qwen2.5-0.5B-Instruct … revision=7ae557604adf…` then `Time spent downloading
+   weights … 0.55 seconds` for a 0.92 GiB checkpoint — a fast local cache hit, not a fresh
+   HF download. (The literal on-host dir `/runpod-volume/huggingface-cache/hub/` is Runpod's
+   documented location and is consistent with this; the logs proved the cache-hit behavior
+   but did not print the absolute path.)
+5. ✅ Cold pickup ~105s, inference ~1.5s; total spend across all test runs ≈ $0.69; endpoint
+   torn down.
 
 ## Gotchas to watch
 - **v2.3.0 and older don't have `--model-reference`** — the create call will reject the
@@ -124,12 +124,15 @@ Results from the 2026-07-14 live run:
 - **Sync routes 524 on cold load.** `/openai/...` and `/runsync` sit behind a ~100 s edge
   timeout; the first-request model load blew past it → Cloudflare **524**. Use async
   `/run` + `/status` for the first call (see step 4).
-- **"Ready" ≠ draining the queue.** Run 2: `/health` showed `workers.ready:1` but an async
-  `/run` job sat `IN_QUEUE` ~15 min with `inProgress:0`, only reaching `running` at
-  teardown — the exact "ready but mis-dispatching" symptom the runpodctl skill flags. If
-  jobs don't move behind a ready worker, the worker image is slow/broken to serve; give it
-  more time, get worker logs (MCP/Console), or switch workers — don't assume the cache flag
-  is at fault (the deploy + ref-pinning worked).
+- **A new endpoint is slow to pick up its first job — be patient, don't call it broken.**
+  `/health` can report `workers.ready:1` while the worker is *still booting vLLM* (CUDA
+  init + engine + model load ≈ 30s+ after the container starts), so a job sits `IN_QUEUE`
+  for a minute or two before `inProgress`. On the verified run the job completed ~105s
+  after submit. **Read the worker logs to tell "slow boot" from "actually broken"** — the
+  Runpod MCP `stream-worker-logs` (with `list-endpoint-workers` for the worker id) shows the
+  vLLM startup live; look for `Starting to load model …` → `init engine … took` →
+  `fitness checks passed` → `Jobs in progress`. Only treat it as a broken/mis-dispatching
+  image (per the runpodctl skill) if the logs show a crash or a real stall, not just slow startup.
 
 ## Cost & cleanup
 - A 0.5B model on an RTX 4090 scaled to zero (`--workers-min 0`, the default) bills only

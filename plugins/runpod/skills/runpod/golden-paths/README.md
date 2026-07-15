@@ -9,9 +9,8 @@ clicking the Console — must be able to complete them. **Paths 01–19 were run
 a real account** (each caught real skill gaps we then folded back), commands and
 outputs are the real ones, and every test resource was torn down after. 04's training
 phase was verified as the train phase of golden path 08; 01–10 were run 2026-07-07→10,
-and 11–19 on 2026-07-13. **Path 20 (2026-07-14) is ⚠️ partial** — deploy + model-reference
-resolution verified live, but the worker's first cold start exceeded 20 min so inference
-wasn't confirmed before teardown.
+and 11–19 on 2026-07-13. Path 20 was live-verified 2026-07-15 (diagnosed via the Runpod MCP
+worker logs — a `COMPLETED` job off a `--model-reference` cache hit).
 
 ## Before you run any path (shared prerequisites)
 
@@ -72,7 +71,7 @@ observed output) → Gotchas we hit → Cost & cleanup → Skill gaps folded bac
 | 17 | [Serverless WebSocket worker](17-serverless-websocket.md) | serverless / LB | `worker-lb-websocket` + `wss://<ep>.api.runpod.ai/ws` | ✅ live-verified |
 | 18 | [Concurrent handler (per-worker concurrency)](18-concurrent-handler.md) | serverless / throughput | async `concurrency_modifier` | ✅ live-verified |
 | 19 | [3-region same-file endpoint](19-three-region-same-file.md) | serverless / availability | 3 volumes + S3 sync + GraphQL multi-volume attach | ✅ live-verified |
-| 20 | [Host-cached HF model endpoint (`--model-reference`)](20-model-caching-endpoint.md) | serverless / model delivery | runpodctl ≥v2.4.0 (`--model-reference`) + vLLM worker | ⚠️ partial (deploy verified; inference pending — slow cold start) |
+| 20 | [Host-cached HF model endpoint (`--model-reference`)](20-model-caching-endpoint.md) | serverless / model delivery | runpodctl ≥v2.4.0 (`--model-reference`) + vLLM worker | ✅ live-verified |
 
 > **When a path has two variants, prefer the prebuilt/Hub one** (Variant B for
 > ComfyUI, Variant A for Whisper) unless you need custom code — that's the
