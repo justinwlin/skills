@@ -83,59 +83,37 @@ Before using unfamiliar commands, inspect live help first. Do not rely on this s
 
 ## Commands
 
+Essentials below. **Full flag menu → [reference/command-reference.md](reference/command-reference.md)** (pods lifecycle, hub/template filters, registry auth, billing, SSH key management); live `runpodctl <resource> <action> --help` is authoritative for exact flags.
+
 ### Pods
 
 ```bash
-runpodctl pod list                                    # List running pods (default, like docker ps)
-runpodctl pod list --all                              # List all pods including exited
-runpodctl pod list --status exited                    # Filter by status (RUNNING, EXITED, etc.)
-runpodctl pod list --since 24h                        # Pods created within last 24 hours
-runpodctl pod list --created-after 2025-01-15         # Pods created after date
-runpodctl pod get <pod-id>                            # Get pod details (includes SSH info)
-runpodctl pod create --template-id runpod-torch-v21 --gpu-id "NVIDIA GeForce RTX 4090"  # Create from template
-runpodctl pod create --image "runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404" --gpu-id "NVIDIA GeForce RTX 4090"  # Create with image
-runpodctl pod create --compute-type cpu --image ubuntu:22.04  # Create CPU pod (pods use lowercase `cpu`; serverless create uses uppercase `CPU`)
-runpodctl pod start <pod-id>                          # Start stopped pod
-runpodctl pod stop <pod-id>                           # Stop running pod
-runpodctl pod restart <pod-id>                        # Restart pod
-runpodctl pod reset <pod-id>                          # Reset pod
-runpodctl pod update <pod-id> --name "new"            # Update pod
-runpodctl pod delete <pod-id>                         # Delete pod (aliases: rm, remove)
+runpodctl pod list                                   # running pods (+ --all / --status / --since / --created-after)
+runpodctl pod get <pod-id>                           # details incl. SSH info
+runpodctl pod create --template-id <id> --gpu-id "NVIDIA GeForce RTX 4090"   # from template
+runpodctl pod create --image <img> --gpu-id "NVIDIA GeForce RTX 4090"        # from image
+runpodctl pod create --compute-type cpu --image ubuntu:22.04                 # CPU pod (lowercase `cpu`; serverless uses `CPU`)
+runpodctl pod {start|stop|restart|reset|update|delete} <pod-id>              # lifecycle (delete aliases: rm/remove)
 ```
-
-For exact pod flags, run `runpodctl pod <action> --help`.
 
 ### Hub
 
-Browse and search the Runpod Hub — a curated marketplace of deployable repos.
+Browse/search the Runpod Hub (curated deployable repos).
 
 ```bash
-runpodctl hub list                                    # Top 10 by stars
-runpodctl hub list --type SERVERLESS                  # Only serverless repos
-runpodctl hub list --type POD                         # Only pod repos
-runpodctl hub list --category ai --limit 20           # Filter by category
-runpodctl hub list --order-by deploys                 # Order by deploys
-runpodctl hub list --owner runpod-workers             # Filter by repo owner
-runpodctl hub search vllm                             # Search for "vllm"
-runpodctl hub search whisper --type SERVERLESS        # Search serverless repos
-runpodctl hub get <listing-id>                        # Get by listing id
-runpodctl hub get runpod-workers/worker-vllm          # Get by owner/name
+runpodctl hub search vllm                            # find a repo (+ hub list [--type/--category/--order-by/--owner])
+runpodctl hub get <listing-id|owner/name>            # repo details
 ```
-
-For exact Hub flags, run `runpodctl hub <action> --help`.
 
 ### Serverless (alias: sls)
 
 ```bash
-runpodctl serverless list                             # List all endpoints
-runpodctl serverless get <endpoint-id>                # Get endpoint details
-runpodctl serverless create --name "x" --template-id "tpl_abc"  # Create from template
-runpodctl serverless create --name "x" --hub-id <listing-id>    # Create from hub repo
-runpodctl serverless create --hub-id <id> --env MODEL_NAME=my-model  # Override hub env defaults
-runpodctl serverless create --template-id <id> --gpu-id "NVIDIA GeForce RTX 4090" --model-reference https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct:main  # Attach & cache a HF model (template or hub, GPU only)
-runpodctl serverless create --hub-id <id> --gpu-id "NVIDIA GeForce RTX 4090" --model-reference https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct:main  # Attach a model on a hub deploy
-runpodctl serverless update <endpoint-id> --workers-max 5       # Update endpoint
-runpodctl serverless delete <endpoint-id>             # Delete endpoint
+runpodctl serverless list | get <endpoint-id> | delete <endpoint-id>
+runpodctl serverless create --name "x" --template-id <id>       # from template
+runpodctl serverless create --name "x" --hub-id <listing-id>    # from hub (+ --env KEY=VAL to override defaults)
+runpodctl serverless create --hub-id <id> --gpu-id "NVIDIA GeForce RTX 4090" \
+  --model-reference https://huggingface.co/<org>/<model>:main   # attach & host-cache a HF model (GPU only)
+runpodctl serverless update <endpoint-id> --workers-max 5
 ```
 
 **Create from hub:** `--hub-id` resolves the hub listing, extracts the build image and config (GPU IDs, container disk, env vars), creates an inline template, and deploys. Accepts both SERVERLESS and POD listing types. GPU IDs and env var defaults from the hub config are included automatically; override with `--gpu-id` and `--env`.
@@ -158,23 +136,11 @@ For exact serverless flags, run `runpodctl serverless <action> --help`.
 ### Templates (alias: tpl)
 
 ```bash
-runpodctl template list                               # Official + community (first 10)
-runpodctl template list --type official               # All official templates
-runpodctl template list --type community              # Community templates (first 10)
-runpodctl template list --type user                   # Your own templates
-runpodctl template list --all                         # Everything including user
-runpodctl template list --limit 50                    # Show 50 templates
-runpodctl template search pytorch                     # Search for "pytorch" templates
-runpodctl template search comfyui --limit 5           # Search, limit to 5 results
-runpodctl template search vllm --type official        # Search only official
-runpodctl template get <template-id>                  # Get template details (includes README, env, ports)
-runpodctl template create --name "x" --image "img"    # Create template
-runpodctl template create --name "x" --image "img" --serverless  # Create serverless template
-runpodctl template update <template-id> --name "new"  # Update template
-runpodctl template delete <template-id>               # Delete template
+runpodctl template search <q>                        # find (+ template list [--type official/community/user, --all, --limit])
+runpodctl template get <template-id>                 # details (README, env, ports)
+runpodctl template create --name "x" --image "img" [--serverless]
+runpodctl template delete <template-id>
 ```
-
-For exact template flags, run `runpodctl template <action> --help`.
 
 ### Network Volumes (alias: nv)
 
@@ -204,70 +170,27 @@ runpodctl model add --name "my-model" --model-path ./model   # Upload a local mo
 runpodctl model remove --name "my-model" --owner <owner>     # Remove a model
 ```
 
-For exact model flags, run `runpodctl model <action> --help` (authoritative — `model add`
-supports upload sessions, versioning, metadata, and private-source credentials).
+`model add` supports upload sessions, versioning, metadata, and private-source credentials — see live `runpodctl model add --help`.
 
-### Registry (alias: reg)
-
-```bash
-runpodctl registry list                               # List registry auths
-runpodctl registry get <registry-id>                  # Get registry auth
-runpodctl registry create --name "x" --username "u" --password "p"  # Create registry auth
-runpodctl registry delete <registry-id>               # Delete registry auth
-```
-
-For exact registry flags, run `runpodctl registry <action> --help`.
-
-### Info
+### Info & SSH
 
 ```bash
-runpodctl user                                        # Account info and balance (alias: me)
-runpodctl gpu list                                    # List available GPUs
-runpodctl gpu list --include-unavailable              # Include unavailable GPUs
-runpodctl datacenter list                             # List datacenters (alias: dc)
-runpodctl billing pods                                # Pod billing history
-runpodctl billing serverless                          # Serverless billing history
-runpodctl billing network-volume                      # Volume billing history
+runpodctl user                                       # account info + balance (alias: me)
+runpodctl gpu list                                   # available GPUs (+ --include-unavailable)
+runpodctl datacenter list                            # datacenters (alias: dc)
+runpodctl ssh info <pod-id>                          # SSH connection details (command + key; NOT an interactive session)
 ```
 
-For exact info and billing flags, run `runpodctl <command> --help` or `runpodctl billing <resource> --help`.
-
-### SSH
-
-```bash
-runpodctl ssh info <pod-id>                           # Get SSH info (command + key, does not connect)
-runpodctl ssh list-keys                               # List SSH keys
-runpodctl ssh add-key                                 # Add SSH key
-runpodctl ssh remove-key --name <name>                # Remove key by name
-runpodctl ssh remove-key --fingerprint <fp>           # Remove key by fingerprint
-```
-
-**Remove-key:** if multiple keys share a name, use `--fingerprint` to disambiguate.
-
-**Agent note:** `ssh info` returns connection details, not an interactive session. If interactive SSH is not available, execute commands remotely via `ssh user@host "command"`.
+`ssh info` gives connection details, not a session — if interactive SSH isn't available, run `ssh user@host "command"`. **Registry auth, `billing` history, and SSH key management** (`ssh add-key`/`remove-key`) are in [reference/command-reference.md](reference/command-reference.md).
 
 ### File Transfer
 
 ```bash
-runpodctl send <path>                                 # Send file/dir — prints a one-time code
-runpodctl receive <code>                              # Receive using that code (positional, no --code flag)
+runpodctl send <path>                                # prints a one-time code, then blocks until the receiver connects
+runpodctl receive <code>                             # positional code (no --code flag)
 ```
 
-`send`/`receive` do encrypted, incremental, compressed transfer — don't pre-tar or
-pre-compress the source. **Agent flow (one side sends, the other receives):**
-
-1. Run `send <path>` **without** a code. The **first line of stdout is the one-time
-   code**; `send` then blocks until the receiver connects — so capture that first line
-   as it streams (background the process, tee to a log) rather than waiting for exit.
-2. On the other machine (use `runpodctl ssh` into the pod/host if needed) run
-   `receive <code>` with that exact code. Each `send` mints a **fresh** code — never
-   reuse or invent one.
-3. Both processes must exit `0`. On failure, re-run `send` and use its **new** first-line
-   code (don't retry with the old one).
-
-To push local files to a pod: get `ssh info <pod-id>`, start `send` locally (capture the
-code), then `ssh` to the pod and run `receive <code>` there. For large/library-style
-data, a network volume or the S3 API is often simpler than `send`/`receive`.
+Encrypted/incremental/compressed — don't pre-tar. **Key gotchas:** capture the **first line of `send` stdout** (the code) as it streams (background + tee), each `send` mints a **fresh** code, both sides must exit `0`. Full agent flow (pod push via `ssh` + `receive`): [reference/command-reference.md](reference/command-reference.md#file-transfer).
 
 ### Utilities
 

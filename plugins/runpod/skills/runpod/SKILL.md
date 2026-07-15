@@ -27,64 +27,34 @@ the right lane and hands off. Read the matching skill's `SKILL.md` next.
 | **companion-clis** | **Prerequisite artifacts**: download a model (`hf`), build/push an image (`docker`), repos/releases (`gh`), move data to a network volume over S3 (`aws`). |
 | **runpod-usage** | **Understand** how Runpod works before acting — pods vs serverless, building a container, storage, GPU selection, gotchas. Knowledge only. |
 
-## First run — get a control plane set up (don't just limp on a fallback)
+## First run — check auth before the first infra action
 
-Infra tasks (create/list/manage pods, endpoints, jobs, volumes) need a working control-plane
-lane: the **Runpod MCP server** (structured tools) or **runpodctl** (CLI). On the first infra
-request, check what's actually connected and **proactively help the user get set up** — use a
-working lane so you're never blocked, but **don't quietly limp along on a partial fallback when a
-quick one-time setup step would give them the right lane.** Push them to get properly set up
-where it makes sense; keep trying whatever works in the meantime.
+Infra tasks (pods, endpoints, jobs, volumes) need a working control plane — the **Runpod MCP**
+or **runpodctl**. Don't start and discover mid-task that nothing's set up: check first, and if
+it isn't, help the user set up rather than limping on a partial fallback.
 
-**Check auth FIRST — before the first infra action in a session.** Don't start work and
-discover mid-task that nothing's set up. Confirm a credential exists, in this resolution
-order (what runpodctl, flash, and runpod-python all read):
-`RUNPOD_API_KEY` env var → `.env` → `~/.runpod/config.toml`.
-
+**Check** (credential resolution order: `RUNPOD_API_KEY` env → `.env` → `~/.runpod/config.toml`):
 ```bash
-echo "${RUNPOD_API_KEY:+env-key-set}"     # is the env var set?
-runpodctl user                            # succeeds ⇒ a key in ~/.runpod/config.toml is valid
+runpodctl user            # succeeds ⇒ a key is set and valid
 ```
-Also check the MCP: in Claude Code `/mcp` should show `runpod` **Connected**.
+Plus, in Claude Code, `/mcp` should show `runpod` **Connected**.
 
-**Lead with a Runpod API key — it unlocks EVERY tool. Do NOT default to MCP OAuth.**
-A single `RUNPOD_API_KEY` authenticates **runpodctl + flash + the hosted MCP** (pass it as
-`--header "Authorization: Bearer $RUNPOD_API_KEY"`). The MCP's own **"Sign in with Runpod"
-OAuth authenticates the MCP *alone*** — runpodctl and flash stay unauthed, so you hit a wall
-the moment a task needs a CLI-only capability (Hub, `send`/`receive`, SSH, `doctor`, model
-cache/Model Repository, CPU endpoints). ⚠️ **OAuth-only is a half-setup** — always prefer
-getting the key.
+**Get a key — it unlocks EVERY tool; don't default to MCP OAuth.** One `RUNPOD_API_KEY`
+authenticates **runpodctl + flash + the hosted MCP** (as `--header "Authorization: Bearer
+$RUNPOD_API_KEY"`). The MCP's "Sign in with Runpod" OAuth auths the **MCP alone** — the CLIs
+stay blocked, so you hit a wall on any CLI-only task (Hub, `send`/`receive`, SSH, `doctor`,
+model cache/Model Repository, CPU endpoints). ⚠️ **OAuth-only is a half-setup.** If nothing's
+set up, stop and get a key, in order:
+1. **`flash login`** — browser OAuth that saves a real key to `~/.runpod/config.toml` (runpodctl
+   + flash read it; reuse it for the MCP Bearer). One step, unlocks all. Human-only.
+2. **`export RUNPOD_API_KEY=…`** (https://console.runpod.io/user/settings) — same full unlock;
+   best for headless agents.
+3. **MCP OAuth only** (`/mcp` → *Sign in*) — last resort, MCP-only work; CLIs stay unauthed.
 
-**If nothing is set up, stop and get a key (in this order of preference):**
-1. **`flash login`** — browser OAuth that **saves a real API key to `~/.runpod/config.toml`**
-   (runpodctl + flash both read it; you can also hand it to the MCP as a Bearer header). One
-   step, unlocks everything. Human-only (needs a browser).
-2. **`export RUNPOD_API_KEY=…`** — grab one at https://console.runpod.io/user/settings. Same
-   full unlock; best for a headless agent (non-interactive).
-3. **MCP OAuth only** (`/mcp` → *Sign in with Runpod*) — *last resort, MCP-only work.* Fast,
-   but leaves runpodctl + flash blocked; you'll still need a key for anything the MCP can't do.
-
-Verify the key worked: `runpodctl user` returns your account (and the MCP accepts the same
-key via Bearer). **Don't proceed on a partial auth** — if only the MCP is signed in, get a
-key before the first CLI-only step instead of discovering the wall mid-task.
-
-What to do:
-1. **A lane is already connected** — MCP tools callable, or `runpodctl user` works → use it.
-   But if *only* the MCP is authed (OAuth), still get a key before any CLI-only capability.
-2. **MCP installed but unauthenticated** — common right after installing this plugin. The best
-   fix is **still a key**: `flash login` or `export RUNPOD_API_KEY=…`, then add the hosted MCP
-   with `--header "Authorization: Bearer $RUNPOD_API_KEY"` — that auths the MCP **and** unlocks
-   the CLIs in one move. Only fall back to `/mcp` → *Sign in* if the user explicitly just wants
-   MCP right now (and tell them the CLIs stay unauthed until a key is set).
-3. **Nothing connected** — **stop and get a key** (order above); don't guess or fake a result.
-   Missing a CLI? Install: `curl -sSL https://cli.runpod.net | bash` (runpodctl) ·
-   `uv tool install runpod-flash` (flash) · `npx @runpod/mcp-server@latest add` (MCP).
-4. **Only a fallback lane is available** — e.g. runpodctl works but they wanted MCP (or vice-
-   versa). **Use what works to make progress, and offer the one-time setup** that gives them the
-   intended lane, so it's smoother next time. Progress now, but nudge toward the proper setup.
-
-Full setup: **runpod-mcp** (Connect) and `runpod-usage/reference/getting-started.md`. Get one lane
-green, then continue with the routing below.
+**Then:** if a lane already works, use it — but if *only* the MCP is OAuth'd, still get a key
+before any CLI-only step. Missing a CLI? `curl -sSL https://cli.runpod.net | bash` (runpodctl) ·
+`uv tool install runpod-flash` (flash) · `npx @runpod/mcp-server@latest add` (MCP). Full setup:
+[`runpod-usage/reference/getting-started.md`](../runpod-usage/reference/getting-started.md).
 
 ## How to route
 
