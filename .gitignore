@@ -1,2 +1,5 @@
 # Local dev artifacts
 .flash/
+
+# Local-only fork-sync helper (never committed/pushed)
+sync-fork.sh
