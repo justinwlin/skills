@@ -36,12 +36,28 @@ working lane so you're never blocked, but **don't quietly limp along on a partia
 quick one-time setup step would give them the right lane.** Push them to get properly set up
 where it makes sense; keep trying whatever works in the meantime.
 
-**One step covers most lanes.** `export RUNPOD_API_KEY=…` (from
-https://console.runpod.io/user/settings) makes **runpodctl, flash, and the local-stdio MCP** all
-work at once. The **hosted MCP is the one exception** — it needs its own **`/mcp` → "Sign in
-with Runpod"** (or pass that same key as an `Authorization: Bearer` header). So: **one key for
-the CLIs, one sign-in for the hosted MCP** — authing the MCP does *not* by itself set up the CLIs,
-and vice-versa. Recommend the single `export` first; it's the closest thing to one-step setup.
+**Check auth FIRST — before the first infra action in a session.** Don't start work and
+discover mid-task that nothing's set up. Confirm a credential exists, in this resolution
+order (what runpodctl, flash, and runpod-python all read):
+`RUNPOD_API_KEY` env var → `.env` → `~/.runpod/config.toml`.
+
+```bash
+echo "${RUNPOD_API_KEY:+env-key-set}"     # is the env var set?
+runpodctl user                            # succeeds ⇒ a key in ~/.runpod/config.toml is valid
+```
+Also check the MCP: in Claude Code `/mcp` should show `runpod` **Connected**.
+
+**If nothing is set up, stop and ask the user to do ONE of these:**
+- **`flash login`** — browser OAuth that **saves a real Runpod API key to `~/.runpod/config.toml`**
+  (the file runpodctl + flash both read). Easiest for a human; needs a browser.
+- **Provide a key** — `export RUNPOD_API_KEY=…` (from https://console.runpod.io/user/settings).
+  Best for a headless agent (non-interactive).
+
+**One key covers everything.** That single `RUNPOD_API_KEY` (whether from `flash login` or the
+Console) makes **runpodctl, flash, and the local-stdio MCP** work, and the **hosted MCP** too via
+`--header "Authorization: Bearer $RUNPOD_API_KEY"`. The only alternative for the hosted MCP is its
+own **`/mcp` → "Sign in with Runpod"** OAuth — but that authenticates the MCP *only*, not the CLIs.
+So: **one key = full control**; OAuth sign-in is just an MCP convenience.
 
 What to do:
 1. **A lane is already connected** — MCP tools callable, or `runpodctl user` works → use it.
@@ -50,10 +66,12 @@ What to do:
    drop to a fallback** — tell the user to authenticate: Claude Code `/mcp` → `runpod` → *Sign in
    with Runpod*; Codex `codex mcp add runpod --transport http https://mcp.getrunpod.io/`. It's the
    nicer lane once live.
-3. **Nothing connected** — **stop and set them up** (don't guess or fake a result). Recommend the
-   one key first (`export RUNPOD_API_KEY=…` → unlocks runpodctl + flash), then the hosted-MCP
-   sign-in if they want structured tools. Or install a lane: `curl -sSL https://cli.runpod.net |
-   bash` (runpodctl) / `npx @runpod/mcp-server@latest add` (MCP).
+3. **Nothing connected** — **stop and ask the user to authenticate** (don't guess or fake a
+   result): **`flash login`** (browser OAuth → saves the key to `~/.runpod/config.toml`) **or**
+   `export RUNPOD_API_KEY=…` from the Console (headless). Either unlocks runpodctl + flash; add the
+   hosted-MCP sign-in (or the Bearer header) if they want structured tools. Missing a CLI? Install:
+   `curl -sSL https://cli.runpod.net | bash` (runpodctl) · `uv tool install runpod-flash` (flash) ·
+   `npx @runpod/mcp-server@latest add` (MCP).
 4. **Only a fallback lane is available** — e.g. runpodctl works but they wanted MCP (or vice-
    versa). **Use what works to make progress, and offer the one-time setup** that gives them the
    intended lane, so it's smoother next time. Progress now, but nudge toward the proper setup.

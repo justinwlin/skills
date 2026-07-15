@@ -23,13 +23,14 @@ Nothing to install for the **hosted MCP** beyond configuring your client, and th
 ## The Runpod API key
 
 Get it once at **https://console.runpod.io/user/settings** → API Keys. Then make
-it resolvable for the lane:
+it resolvable for the lane. Resolution order (runpodctl, flash, and runpod-python
+all use it): **`RUNPOD_API_KEY` env var → `.env` → `~/.runpod/config.toml`**.
 
 | Lane | Set the key | Notes |
 | --- | --- | --- |
 | **runpodctl** | `export RUNPOD_API_KEY=...` | Non-interactive — runpodctl reads it. Best for agents/CI/scripts. |
 | runpodctl (human) | `runpodctl doctor` | Interactive; stores the key **and** sets up SSH keys. Prompts, so not for agents. |
-| **flash** | `export RUNPOD_API_KEY=...` | Or `flash login` (browser OAuth) for a human. |
+| **flash** | `export RUNPOD_API_KEY=...` | Or `flash login` — browser OAuth that **saves a real API key to `~/.runpod/config.toml`**, which runpodctl reads too, so one login serves both. Human-only (needs a browser). |
 | **runpod-mcp (hosted)** | "Sign in with Runpod" OAuth on first connect | No key on disk. Or pass `Authorization: Bearer $RUNPOD_API_KEY`. |
 | **runpod-mcp (local)** | `RUNPOD_API_KEY` env in the MCP client config | Forwarded to the API. |
 
