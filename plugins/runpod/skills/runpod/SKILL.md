@@ -135,12 +135,13 @@ prebuilt template / Hub worker over building from scratch** → provision → se
 (only if from-scratch) → **verify with a real request from outside** ("Running"/
 "ready" ≠ serving) → deliver → cost-guard + teardown. It branches to two sub-loops:
 
-- **Service you open at a URL** (Ollama, ComfyUI, dev box) → `pod-workflows.md`
+- **Service you open at a URL** (Ollama, ComfyUI, dev box) →
+  [`runpod-usage/reference/pod-workflows.md`](../runpod-usage/reference/pod-workflows.md)
   (ports + env + volume at creation, SSH-exec install, bind `0.0.0.0`, poll the
   proxy URL). Execute in the runpodctl lane.
 - **Request/response API that scales to zero** (Whisper, inference) →
-  `endpoint-workflows.md` (Hub worker vs flash vs custom image; invoke `/run`/
-  `/runsync`; poll job status).
+  [`runpod-usage/reference/endpoint-workflows.md`](../runpod-usage/reference/endpoint-workflows.md)
+  (Hub worker vs flash vs custom image; invoke `/run`/`/runsync`; poll job status).
 
 ## Worked examples (golden paths)
 

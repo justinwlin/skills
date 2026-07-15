@@ -25,7 +25,14 @@ connected (typed params, structured errors, no shell quoting).
 
 ## Connect
 
-Connect the hosted server with **your API key as a Bearer header** if you also use runpodctl/flash — that one key auths the MCP *and* the CLIs. Plain **OAuth** ("Sign in with Runpod") is MCP-only (CLIs stay unauthed) — use it only for MCP-only work. Local **stdio** runs the server as a subprocess with your key. Exact commands + the key-vs-OAuth tradeoff: **[reference/connect.md](reference/connect.md)**. After connecting, reconnect the client (in Claude Code, `/mcp`) so the tools load.
+Connect the hosted server with **your API key as a Bearer header** if you also use runpodctl/flash — that one key auths the MCP *and* the CLIs (the 80% path):
+
+```bash
+claude mcp add --transport http runpod -s user https://mcp.getrunpod.io/ \
+  --header "Authorization: Bearer $RUNPOD_API_KEY"
+```
+
+Plain **OAuth** ("Sign in with Runpod", via `npx @runpod/mcp-server@latest add`) is MCP-only — the CLIs stay unauthed, so use it only for MCP-only work. Local **stdio** runs the server as a subprocess with your key. Those variants + the key-vs-OAuth tradeoff: **[reference/connect.md](reference/connect.md)**. After connecting, reconnect the client (in Claude Code, `/mcp`) so the tools load.
 
 **Verify it's live (do this before relying on MCP):** in Claude Code run `/mcp` —
 `runpod` should show **Connected**, not *Needs authentication* (if it's the latter,

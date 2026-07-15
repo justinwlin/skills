@@ -234,8 +234,10 @@ curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
 
 The handler reads its data from `/runpod-volume/...` exactly as in the single-volume case.
 > **Note:** prefer the `runpodctl` path above — it carries `--compute-type` (CPU/GPU)
-> correctly. The raw GraphQL fallback has no `computeType` field, so an endpoint attached
-> that way defaults to GPU; the HA behavior (multi-DC, per-DC volume, parity) is identical.
+> directly. The raw GraphQL `saveEndpoint` has no `computeType` field, but it can **still
+> make a CPU endpoint** — pass `instanceIds` (a CPU flavor, e.g. `cpu3c-2-4`) with an empty
+> `gpuIds` (live-verified in golden path [19](19-three-region-same-file.md)); omit those and
+> it defaults to GPU. HA behavior (multi-DC, per-DC volume, parity) is identical.
 
 ### 5. Verify HA + parity — ✅ live 2026-07-10
 Burst of **16** `/run` jobs, polled to completion (cold start ~10 s queue, ~135 ms exec):
@@ -275,8 +277,9 @@ same synced data. `RUNPOD_DC_ID` is the clean per-request DC identifier; poll wi
   fallback: GraphQL `saveEndpoint` with the object shape (step 4); the Console UI also works.
 - **GraphQL fallback needs a browser-ish `User-Agent`** on `api.runpod.io/graphql`
   (`User-Agent: Mozilla/5.0`); not needed for the `runpodctl` path.
-- **GraphQL fallback doesn't carry `computeType`** — an endpoint attached via raw
-  `saveEndpoint` defaults to GPU. Use the `runpodctl` path for CPU. HA behavior is identical.
+- **GraphQL fallback has no `computeType` field** — but a CPU endpoint is still expressible
+  via `instanceIds` (a CPU flavor) + empty `gpuIds` (see [19](19-three-region-same-file.md));
+  omit those and `saveEndpoint` defaults to GPU. HA behavior is identical.
 - **No auto-sync** — the entire reason this path is hard. Drift → inconsistent responses.
 - **One volume per DC** — you can't stack two volumes in the same DC for an endpoint.
   (Live: each worker's `RUNPOD_VOLUME_ID` = its own DC's volume.)

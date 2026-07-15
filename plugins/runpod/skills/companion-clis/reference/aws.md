@@ -50,16 +50,19 @@ unset AWS_SECRET_ACCESS_KEY
 
 The `--region` flag on every command is the Runpod datacenter ID where the network volume lives — not an AWS region. The `--endpoint-url` is derived from the same datacenter ID.
 
-Every command requires both flags:
+Every command requires both flags. **`--region` takes the DC id as-is, but the
+`--endpoint-url` host must be LOWERCASED** — `s3api-eu-ro-1…`, not `s3api-EU-RO-1…`
+(an upper-cased host fails to resolve):
 ```
---region DATACENTER --endpoint-url https://s3api-DATACENTER.runpod.io/
+--region <DC> --endpoint-url https://s3api-<dc-lowercased>.runpod.io/
+# DC EU-RO-1  →  --region EU-RO-1  --endpoint-url https://s3api-eu-ro-1.runpod.io/
 ```
 
 **Tip:** Each network volume on the storage page at https://console.runpod.io/user/storage/ shows a pre-filled example `aws s3 ls` command with the correct `--region` and `--endpoint-url` already substituted. Use this to confirm the exact values for a given volume.
 
-Datacenter IDs are **region-prefixed** (they go verbatim into `--region <DC>` and
-`https://s3api-<DC>.runpod.io/`). `runpodctl datacenter list` is authoritative — the set
-grows over time; run it for the current list. Common ones:
+Datacenter IDs are **region-prefixed**; they go verbatim into `--region <DC>` but must be
+**lowercased** in the host `https://s3api-<dc-lowercased>.runpod.io/`. `runpodctl datacenter
+list` is authoritative — the set grows over time; run it for the current list. Common ones:
 
 | Region | Datacenter IDs |
 |--------|---------------|
@@ -69,43 +72,45 @@ grows over time; run it for the current list. Common ones:
 
 ## Key Commands
 
-Replace `DATACENTER` with the datacenter ID of your network volume (e.g. `CA-2`) and `NETWORK_VOLUME_ID` with the volume ID (used as the S3 bucket name).
+Replace `DATACENTER` (in `--region`) with your network volume's datacenter ID **as-is**
+(e.g. `US-CA-2`), `<dc-lowercased>` (in the host) with that **same id lowercased**
+(`us-ca-2`), and `NETWORK_VOLUME_ID` with the volume ID (the S3 bucket name).
 
 ```bash
 # List files in a volume
 aws s3 ls \
   --region DATACENTER \
-  --endpoint-url https://s3api-DATACENTER.runpod.io/ \
+  --endpoint-url https://s3api-<dc-lowercased>.runpod.io/ \
   s3://NETWORK_VOLUME_ID/
 
 # List a subdirectory
 aws s3 ls \
   --region DATACENTER \
-  --endpoint-url https://s3api-DATACENTER.runpod.io/ \
+  --endpoint-url https://s3api-<dc-lowercased>.runpod.io/ \
   s3://NETWORK_VOLUME_ID/my-folder/
 
 # Upload a file
 aws s3 cp local-file.txt \
   --region DATACENTER \
-  --endpoint-url https://s3api-DATACENTER.runpod.io/ \
+  --endpoint-url https://s3api-<dc-lowercased>.runpod.io/ \
   s3://NETWORK_VOLUME_ID/
 
 # Download a file
 aws s3 cp \
   --region DATACENTER \
-  --endpoint-url https://s3api-DATACENTER.runpod.io/ \
+  --endpoint-url https://s3api-<dc-lowercased>.runpod.io/ \
   s3://NETWORK_VOLUME_ID/remote-file.txt ./
 
 # Delete a file
 aws s3 rm \
   --region DATACENTER \
-  --endpoint-url https://s3api-DATACENTER.runpod.io/ \
+  --endpoint-url https://s3api-<dc-lowercased>.runpod.io/ \
   s3://NETWORK_VOLUME_ID/remote-file.txt
 
 # Sync a local directory to a volume
 aws s3 sync local-dir/ \
   --region DATACENTER \
-  --endpoint-url https://s3api-DATACENTER.runpod.io/ \
+  --endpoint-url https://s3api-<dc-lowercased>.runpod.io/ \
   s3://NETWORK_VOLUME_ID/remote-dir/
 ```
 
@@ -121,7 +126,7 @@ export AWS_MAX_ATTEMPTS=10
 # Extend read timeout for large files (seconds)
 aws s3 cp large-file.zip \
   --region DATACENTER \
-  --endpoint-url https://s3api-DATACENTER.runpod.io/ \
+  --endpoint-url https://s3api-<dc-lowercased>.runpod.io/ \
   --cli-read-timeout 7200 \
   s3://NETWORK_VOLUME_ID/
 ```
