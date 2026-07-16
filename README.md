@@ -20,6 +20,12 @@ Cline, Gemini, opencode, +more):
 npx skills add runpod/skills
 ```
 
+Install the Runpod CLI the skills drive (skip if you already have it):
+
+```bash
+curl -sSL https://cli.runpod.net | bash      # or: brew install runpod/runpodctl/runpodctl
+```
+
 Then authenticate — one API key covers everything (from
 [the console](https://runpod.io/console/user/settings)):
 
