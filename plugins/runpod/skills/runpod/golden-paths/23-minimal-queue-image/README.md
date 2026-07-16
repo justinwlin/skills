@@ -20,8 +20,10 @@ See [building-images.md](../../../runpod-usage/reference/building-images.md) for
 - **`requirements.txt`** — just `runpod`.
 - **`Dockerfile`** — `FROM python:3.11-slim`; deps layer before code; `CMD` runs the handler.
 
-> Trivial CPU handler → `python:3.11-slim` is honest and pulls fast. A real GPU workload
-> should start `FROM runpod/pytorch:<tag>` (pre-cached on hosts) — see building-images.md.
+> This CPU demo uses `python:3.11-slim` (honest + pulls fast). A GPU workload should build
+> `FROM runpod/pytorch:<tag>` for the pre-cached CUDA/torch base — see
+> [building-images.md](../../../runpod-usage/reference/building-images.md) (the single source
+> for base-image choice).
 
 ## Build + push
 

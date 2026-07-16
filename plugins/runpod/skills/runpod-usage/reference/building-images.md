@@ -8,16 +8,24 @@ push) live in [companion-clis docker](../../companion-clis/reference/docker.md) 
 
 ## Start from an official Runpod base image
 
-Build `FROM` an official **`runpod/pytorch:<tag>`** image. Two reasons:
+**For a GPU workload, build `FROM` an official `runpod/pytorch:<tag>` image.** Two reasons:
 
 - **torch/CUDA already match Runpod hosts**, so you don't fight driver/toolkit mismatches.
 - **Runpod pre-caches official base images on its hosts.** The base layers are effectively
   already on the machine, so they don't re-download at pull time — you only ship the layers
   you add on top. Starting from a random public base throws that away.
 
-Pin an exact tag (e.g. `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404`) and build for x86:
-`docker build --platform=linux/amd64 …` (Runpod hosts are x86_64 — see
-[docker.md](docker.md)).
+**Exceptions (both shown in the golden paths):** a trivial CPU-only workload may use a slim
+base (e.g. `python:3.11-slim`) — see [GP23](../../runpod/golden-paths/23-minimal-queue-image/README.md);
+and if you build from a **non-Runpod base you must reproduce SSH yourself** for pods (see the
+SSH section below and [GP22](../../runpod/golden-paths/22-minimal-pod-image/README.md)).
+
+Then, whatever the base:
+
+- **Pin an exact tag**, e.g. `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404` — for
+  reproducible builds.
+- **Build for x86_64:** `docker build --platform=linux/amd64 …` — Runpod hosts are x86_64
+  (see [docker.md](docker.md)).
 
 ## Layer for fast, cacheable pulls
 
@@ -40,10 +48,10 @@ Unchanged layers are reused from cache; only the layers after your edit rebuild/
   RUN pip install --no-cache-dir -r requirements.txt
   COPY . .
   ```
-- **Keep it small** (smaller image = faster pull + cold start): `apt-get install --no-install-recommends …` then `rm -rf /var/lib/apt/lists/*`; `pip install --no-cache-dir`; use a **multi-stage** build when heavy build tools aren't needed at runtime.
+- **Shrink the image** (smaller = faster pull + cold start) with concrete steps: `apt-get install --no-install-recommends …` then `rm -rf /var/lib/apt/lists/*`; `pip install --no-cache-dir`; use a **multi-stage** build when heavy build tools aren't needed at runtime.
 - **BuildKit cache mounts** for fast rebuilds: `RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt`.
 - **Never bake secrets** into layers (API keys, tokens) — layers are extractable; pass secrets as runtime env.
-- **`ENV PYTHONUNBUFFERED=1`** so logs stream, and pin an exact base image tag for reproducibility.
+- **`ENV PYTHONUNBUFFERED=1`** — so logs stream unbuffered. (Pin the base image tag too — see above.)
 
 ## Don't clobber the base image's startup (SSH / web terminal) — **pods**
 
@@ -52,21 +60,26 @@ pod usable**: it reads `$PUBLIC_KEY` into `~/.ssh/authorized_keys`, runs `ssh-ke
 starts `sshd`, and brings up the web terminal / Jupyter. It also runs `/pre_start.sh` before
 and `/post_start.sh` after, if those exist.
 
-If your Dockerfile sets its own `CMD`/`ENTRYPOINT` and **doesn't chain `/start.sh`**, none of
-that runs — you get **no SSH, no web terminal**, and can be locked out of the pod. (Serverless
-doesn't care — there's no SSH — but for a **pod** this is the #1 footgun.)
+**Rule (pods):** any custom `CMD`/`ENTRYPOINT` **must invoke `/start.sh`** — inherit it, or run
+`/start.sh &` before your workload. **Exception:** serverless images are exempt (no SSH).
+
+Why: if a custom `CMD`/`ENTRYPOINT` doesn't chain `/start.sh`, none of that startup runs — you
+get **no SSH, no web terminal**, and can be locked out of the pod. For a pod this is the #1
+footgun.
 
 Three safe patterns, in order of preference:
 
-1. **Don't override `CMD` at all.** Add your layers, leave `CMD ["/start.sh"]`. Do per-pod
-   work via the env-driven hooks the base already runs:
+1. **Don't override `CMD` at all** (default — use this unless you need your own foreground
+   process). Add your layers, leave `CMD ["/start.sh"]`. Do per-pod work via the env-driven
+   hooks the base already runs:
    ```dockerfile
    FROM runpod/pytorch:<tag>
    COPY post_start.sh /post_start.sh   # base runs this AFTER sshd is up
    RUN chmod +x /post_start.sh
    # no CMD — inherit the base's /start.sh
    ```
-2. **Override, but call the base start first**, then your workload:
+2. **Override only if you need your own foreground process** (a long-running service as PID 1):
+   call the base start first, then `exec` your workload:
    ```dockerfile
    COPY run.sh /run.sh
    RUN chmod +x /run.sh

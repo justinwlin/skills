@@ -49,8 +49,8 @@ Two rules the LB contract enforces (full detail + gotchas in
 
 1. **Serve `GET /ping`** → `200` healthy / `204` still initializing. The load balancer only
    routes to workers that answer `200`.
-2. **Bind the configured port** — set **both** `PORT` and `PORT_HEALTH` on the template and
-   expose that port, or the worker shows `running` but never `ready`.
+2. **Bind the configured port** — all three, or the worker shows `running` but never `ready`:
+   (a) set `PORT` on the template; (b) set `PORT_HEALTH` on the template; (c) expose that port.
 
 ## When to pick which
 
