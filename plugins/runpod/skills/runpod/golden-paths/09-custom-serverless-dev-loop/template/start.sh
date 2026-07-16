@@ -2,7 +2,7 @@
 # Dual-mode entrypoint. MODE_TO_RUN picks the behavior:
 #   pod         -> SSH + Jupyter for interactive dev, then sleep forever
 #   serverless  -> run handler.py under the Runpod serverless SDK
-# Trimmed from justinwlin/Runpod-GPU-And-Serverless-Base.
+# Vendored + trimmed from the community repo justinwlin/Runpod-GPU-And-Serverless-Base (provenance only).
 set -e
 
 WORKSPACE_DIR="${WORKSPACE_DIR:-/app}"

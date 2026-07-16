@@ -13,8 +13,11 @@ account: an RTX 4090 pod (`runpod-torch-v280`) transcribed the JFK sample with
 `<your-registry>/whisper-dualmode:v1` reproduced it on a clean `/app`; and a serverless
 endpoint from that image (`MODE_TO_RUN=serverless`) returned the **same transcription**
 for the same audio — pod↔serverless parity confirmed. The commands/outputs below are the
-real ones; gotchas hit live are folded in. The [`template/`](template/) files derive from
-[justinwlin/Runpod-GPU-And-Serverless-Base](https://github.com/justinwlin/Runpod-GPU-And-Serverless-Base).
+real ones; gotchas hit live are folded in. The [`template/`](template/) files are
+**vendored into this path and self-contained** — the walkthrough needs nothing external.
+They were originally adapted from the community repo
+[justinwlin/Runpod-GPU-And-Serverless-Base](https://github.com/justinwlin/Runpod-GPU-And-Serverless-Base)
+(provenance only; not required to run this).
 **Lane(s):** runpodctl (pod + template + serverless) + docker (build/push) + Runpod REST (`/run`, `/status`) + Runpod MCP (`stream-worker-logs`, for diagnosis)
 
 ## When to use this — the escape hatch
@@ -263,8 +266,9 @@ Docker image (`<your-registry>/whisper-dualmode:v1`) is kept — endpoints refer
   in. **09 adds the interactive pod dev loop and the dual-mode image** — the thing you
   want while the handler is still changing.
 - **07 (volume handoff)** is how 09 serves heavy weights without a fat image.
-- Base repo: [justinwlin/Runpod-GPU-And-Serverless-Base](https://github.com/justinwlin/Runpod-GPU-And-Serverless-Base)
-  (the full version with more base-image tags and a Jupyter-first pod setup).
+- Provenance (optional, community repo): [justinwlin/Runpod-GPU-And-Serverless-Base](https://github.com/justinwlin/Runpod-GPU-And-Serverless-Base)
+  — the fuller third-party version with more base-image tags and a Jupyter-first pod
+  setup. The vendored `template/` here is self-contained; this repo is not needed to run the path.
 
 ## Skill facts confirmed / folded back (live run 2026-07-10)
 - **`runpodctl serverless create` deploys a custom image via a template, not a flag.**

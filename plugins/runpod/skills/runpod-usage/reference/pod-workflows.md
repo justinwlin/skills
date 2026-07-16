@@ -91,7 +91,9 @@ the exposed port, in the background, logging to the volume.
 
 A long-lived server must be **fully detached**, or SSH sends SIGHUP on channel
 close and kills it. Use `setsid` + `< /dev/null`, return immediately, and poll in
-a *separate* call (don't `sleep` in the same invocation — it can drop the channel):
+a *separate* call.
+
+**Do not `sleep` in the same invocation** — it can drop the channel:
 
 ```bash
 ssh <host> 'setsid bash -c "env HOST_VAR=0.0.0.0 OTHER=val <service-command>" \

@@ -308,8 +308,9 @@ public** so this doc references a real, pullable tag; it costs nothing.
 
 ## Companion tool: resumable transfers
 For large weights across several volumes, `aws s3 sync` (weak resume, 10k-file wall) is
-the pain point. The community **[Runpod Network Volume Storage
-Tool](https://github.com/justinwlin/Runpod-Network-Volume-Storage-Tool)** wraps the
+the pain point. The **community / third-party [Runpod Network Volume Storage
+Tool](https://github.com/justinwlin/Runpod-Network-Volume-Storage-Tool)** (not
+maintained by Runpod) wraps the
 same S3 API with **resumable multipart uploads** (auto chunk sizing, MD5-verified
 resume), directory sync with excludes, an interactive browser, a Python SDK, and a
 REST server. It's already in the official docs

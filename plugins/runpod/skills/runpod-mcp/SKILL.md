@@ -12,7 +12,7 @@ allowed-tools: Bash(npx:*), Bash(claude:*)
 compatibility: Linux, macOS, Windows
 metadata:
   author: runpod
-  version: "1.0"
+  version: "1.0.0" # x-release-please-version
 license: Apache-2.0
 ---
 

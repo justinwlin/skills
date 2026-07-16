@@ -30,8 +30,11 @@ run these over the SSH channel from the pod development loop (`pod-workflows.md`
   > ```
   > pip correctly sees the pre-installed torch as already satisfied and only adds
   > what's missing.
-- **A vendor install script** (e.g. a service's official `install.sh`) is fine
-  when that is the supported path — just pin a version if the script allows.
+- **A vendor install script** (e.g. a service's official `install.sh`):
+  - **Rule:** pin a version so the setup is reproducible (`INSTALL_VERSION=…` or the
+    script's documented pin flag).
+  - **Exception:** if the script offers no way to pin, using it unpinned is acceptable
+    when that is the vendor's only supported install path.
 
 ## Make it non-interactive
 

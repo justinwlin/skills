@@ -58,12 +58,13 @@ print("------- MODEL READY -------")
 def _resolve_audio(inp: dict) -> str:
     """Accept audio as a URL or base64 blob; write it to a temp file to transcribe."""
     if inp.get("audio_url"):
-        path = tempfile.mktemp(suffix=".audio")
+        fd, path = tempfile.mkstemp(suffix=".audio")
+        os.close(fd)
         urllib.request.urlretrieve(inp["audio_url"], path)
         return path
     if inp.get("audio_base64"):
-        path = tempfile.mktemp(suffix=".audio")
-        with open(path, "wb") as f:
+        fd, path = tempfile.mkstemp(suffix=".audio")
+        with os.fdopen(fd, "wb") as f:
             f.write(base64.b64decode(inp["audio_base64"]))
         return path
     raise ValueError("input must include 'audio_url' or 'audio_base64'")

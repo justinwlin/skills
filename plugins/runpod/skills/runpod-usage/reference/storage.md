@@ -54,7 +54,7 @@ A network volume is pinned to its data center, so any compute that mounts it mus
 be placed in that **same DC**. That narrows GPU availability. To improve
 availability, attach multiple volumes from different DCs (one per DC) — but data
 does **not** sync between them automatically; copy it yourself (S3 API /
-runpodctl). Writing to one volume from many workers at once can corrupt data.
+runpodctl). **Do not write to one volume from multiple workers concurrently** — it can corrupt data.
 
 ## Getting a model to the worker
 

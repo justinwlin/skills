@@ -10,6 +10,6 @@ Initial release as a plugin.
 - Router (`runpod`) + lanes: `runpod-mcp`, `runpodctl`, `flash`, `companion-clis`,
   `runpod-usage` (concepts + `reference/*.md`).
 - Bundled hosted Runpod MCP server config (`.mcp.json`).
-- Worked golden paths (Ollama, ComfyUI, Whisper live-verified; fine-tune,
-  model→endpoint pipeline, dev pod as specs).
+- Worked golden paths — 20 end-to-end scenarios, all live-verified on a real
+  account (path 04's training phase verified via path 08).
 - Evals per lane; the golden development loop and pod/serverless sub-loops.

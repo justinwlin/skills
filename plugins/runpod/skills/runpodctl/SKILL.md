@@ -10,7 +10,7 @@ allowed-tools: Bash(runpodctl:*)
 compatibility: Linux, macOS
 metadata:
   author: runpod
-  version: "2.3"
+  version: "1.0.0" # x-release-please-version
 license: Apache-2.0
 ---
 
@@ -69,7 +69,10 @@ Before using unfamiliar commands, inspect live help first. Do not rely on this s
 
 ## Decision Rules
 
-- Use Hub when the user wants a known deployable app or worker such as vLLM, ComfyUI, Whisper, or a Runpod-maintained repo. Picking a worker: prefer an actively-maintained one on a **broad, high-availability GPU pool** (don't pin a scarce large tier a small model doesn't need). If deployed workers go `ready` but jobs sit `IN_QUEUE` with `inProgress: 0`, that image is broken/mis-dispatching — switch workers, don't wait it out. Note: there's no first-class serverless worker-log command, so diagnose via `/health` worker counts.
+- Use Hub when the user wants a known deployable app or worker such as vLLM, ComfyUI, Whisper, or a Runpod-maintained repo.
+  - **Picking a worker:** prefer an actively-maintained one on a **broad, high-availability GPU pool** (don't pin a scarce large tier a small model doesn't need).
+  - **Broken-image tell:** if deployed workers go `ready` but jobs sit `IN_QUEUE` with `inProgress: 0`, that image is broken/mis-dispatching — switch workers, don't wait it out.
+  - **Diagnosing it:** there's no first-class serverless worker-log command, so diagnose via `/health` worker counts.
 - Serverless endpoints scale to zero with `--workers-min 0` (the default) — no GPU billing while idle, only per request-second. This is the right cost posture for a request/response API. `serverless update` has no `--gpu-id`; to change an existing endpoint's GPU pool, `PATCH https://rest.runpod.io/v1/endpoints/<id>` with `{"gpuTypeIds":[...]}`.
 - Use templates when the user already has a template ID, wants reusable image/config defaults, or needs lower-level control than Hub.
 - Use direct pod creation with `--image` when the user has a specific Docker image and does not need a saved template.
@@ -79,7 +82,9 @@ Before using unfamiliar commands, inspect live help first. Do not rely on this s
 - Standing up a **service on a pod** (Ollama, ComfyUI, a dev server)? Declare its `--ports` and `--env` **at creation** (they can't be added to a running pod without a reset), then follow the pod development loop in the `runpod-usage` skill (`reference/pod-workflows.md`) — SSH-exec the install, bind to `0.0.0.0`, and poll the proxy URL until it answers.
 - For SSH, prefer `runpodctl pod get <pod-id>` or `runpodctl ssh info <pod-id>` to retrieve connection details. Do not use deprecated interactive SSH commands.
 - Network volumes are location-sensitive. Check datacenter availability before attaching volumes, and use `send` / `receive` or S3-compatible storage for migrations.
-- Clean up paid resources after tests: delete serverless endpoints, pods, and temporary volumes created for validation. As a cost guard on creation use `--terminate-after` (deletes the pod); `--stop-after` only *stops* it, so disk/volume keep billing. To delete an attached network volume, remove the pod first.
+- Clean up paid resources after tests: delete serverless endpoints, pods, and temporary volumes created for validation.
+  - **Cost guard on creation:** use `--terminate-after` (deletes the pod); `--stop-after` only *stops* it, so disk/volume keep billing.
+  - **Attached volume:** to delete a network volume, remove the pod using it first.
 
 ## Commands
 

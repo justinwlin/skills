@@ -5,7 +5,7 @@ allowed-tools: Bash(hf:*), Bash(gh:*), Bash(docker:*), Bash(aws:*), Bash(ssh-key
 compatibility: Linux, macOS, Windows
 metadata:
   author: runpod
-  version: "1.1"
+  version: "1.0.0" # x-release-please-version
 license: Apache-2.0
 ---
 

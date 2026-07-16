@@ -20,6 +20,9 @@ WORKDIR $WORKSPACE_DIR
 #      which pip can't uninstall ("no RECORD file") -> --ignore-installed cryptography.
 # faster-whisper installs cleanly on its own; keep the two installs separate so
 # --ignore-installed is scoped to just the cryptography/runpod pair.
+# NOTE: requirements.txt is a copied-in **manifest for reference** (and mirrors the pod
+# install) — we deliberately do NOT `pip install -r` it, because each package needs
+# different flags (see the two RUN lines below). The COPY keeps the manifest in the image.
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --break-system-packages faster-whisper \
  && pip install --no-cache-dir --break-system-packages --ignore-installed cryptography runpod

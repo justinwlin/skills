@@ -9,7 +9,7 @@ description: >-
 user-invocable: true
 metadata:
   author: runpod
-  version: "1.1"
+  version: "1.0.0" # x-release-please-version
 license: Apache-2.0
 ---
 
@@ -177,7 +177,9 @@ https://docs.runpod.io/flash/custom-docker-images
 7. **Client vs decorator** -- `image=`/`id=` = client. Otherwise = decorator.
 8. **Auto GPU switching requires workers >= 5** -- pass a list of GPU types (e.g. `gpu=[GpuGroup.ADA_24, GpuGroup.AMPERE_80]`) and set `workers=5` or higher. The platform only auto-switches GPU types based on supply when max workers is at least 5.
 9. **`runsync` timeout is 60s** -- cold starts can exceed 60s. Use `ep.runsync(data, timeout=120)` for first requests or use `ep.run()` + `job.wait()` instead.
-10. **Request body shape: QB spreads input as kwargs, LB is top-level** -- Load-balanced routes (`@api.post(...)`) take the handler arg at the top level: `{"data": {...}}`. Queue-based endpoints (bare `@Endpoint`, hit via `.../run` or `.../runsync`) call the handler as **`handler(**job_input)`** — the request's `input` dict is spread as keyword arguments, so the handler's parameter names must match the input keys: a handler `def transcribe(input_data: dict)` wants `{"input": {"input_data": {...}}}`, and `def read(input: dict)` wants `{"input": {"input": {...}}}` (a mismatch fails with `got an unexpected keyword argument …`, verified 2026-07-10 via worker logs). Use `**kwargs` if the handler ignores the payload. Also: an **empty** `input` (`{"input": {}}`) is rejected by the worker SDK as `Job has missing field(s): id or input` — always send at least one key. The flash client (`ep.runsync(x)`, `api.post(...)`) hides the spreading — it's a trap for raw HTTP/external callers. See *Autonomous Dev Loop*.
+10. **Request body shape: QB spreads input as kwargs, LB is top-level** -- Load-balanced routes (`@api.post(...)`) take the handler arg at the top level: `{"data": {...}}`. Queue-based endpoints (bare `@Endpoint`, hit via `.../run` or `.../runsync`) call the handler as **`handler(**job_input)`** — the request's `input` dict is spread as keyword arguments, so the handler's parameter names must match the input keys: a handler `def transcribe(input_data: dict)` wants `{"input": {"input_data": {...}}}`, and `def read(input: dict)` wants `{"input": {"input": {...}}}` (a mismatch fails with `got an unexpected keyword argument …`, verified 2026-07-10 via worker logs). Use `**kwargs` if the handler ignores the payload. The flash client (`ep.runsync(x)`, `api.post(...)`) hides the spreading — it's a trap for raw HTTP/external callers. See *Autonomous Dev Loop*.
+    - **Never send an empty `input`.** A QB request with `{"input": {}}` is rejected by
+      the worker SDK as `Job has missing field(s): id or input` — always include at least one key.
 11. **Load a model once per worker (not per call)** -- for real inference use a class `@Endpoint` whose `__init__` loads the model once per worker (see [reference/patterns.md → Loading ML models](reference/patterns.md#loading-ml-models-warm-workers)). In function-form, reconcile with #1 by caching in a module global *inside* the body so it works under both `flash dev` and `deploy`:
     ```python
     global _MODEL
@@ -185,7 +187,10 @@ https://docs.runpod.io/flash/custom-docker-images
     except NameError: _MODEL = load_model()   # runs once per worker, reused across calls
     ```
 12. **Native CUDA libs go in `dependencies=[]` too** -- e.g. CTranslate2/faster-whisper needs `nvidia-cublas-cu12` + `nvidia-cudnn-cu12` or it silently falls back to CPU. Add them alongside the Python package.
-13. **Silent 401 auth failure** -- a set `RUNPOD_API_KEY` env var overrides the `flash login` token, so a bad/expired key wins. The failure is quiet: provisioning logs `GraphQL request failed: 401`, but `flash dev` still prints its normal ready line ("failed endpoints deploy on-demand"), so it *looks* healthy. If endpoints fail to provision, check the log for a 401, then `unset RUNPOD_API_KEY` to fall back to the login token, or export a valid key. Verify a key independently: `curl -s -o /dev/null -w '%{http_code}' https://rest.runpod.io/v1/endpoints -H "Authorization: Bearer $RUNPOD_API_KEY"` (200 = good, 401 = bad).
+13. **Silent 401 auth failure** -- a set `RUNPOD_API_KEY` env var overrides the `flash login` token, so a bad/expired key wins. The failure is quiet: provisioning logs `GraphQL request failed: 401`, but `flash dev` still prints its normal ready line ("failed endpoints deploy on-demand"), so it *looks* healthy. When endpoints fail to provision:
+    1. Check the provisioning log for `GraphQL request failed: 401`.
+    2. Verify the current key independently: `curl -s -o /dev/null -w '%{http_code}' https://rest.runpod.io/v1/endpoints -H "Authorization: Bearer $RUNPOD_API_KEY"` (200 = good, 401 = bad).
+    3. Fix it: `unset RUNPOD_API_KEY` to fall back to the `flash login` token, or `export` a valid key.
 14. **`system_dependencies=` adds to cold start** -- apt packages (e.g. `["ffmpeg", "espeak-ng"]`) install on the worker before first use, so the initial call is slower (on top of any model download); warm calls are unaffected.
 15. **Teardown a deployed app with `flash app delete <app>`** -- `flash undeploy list` may show "no endpoints" for an app that is deployed and serving; `flash app delete` (or `runpodctl serverless delete <id>`) reliably removes it.
 

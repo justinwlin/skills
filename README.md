@@ -96,8 +96,9 @@ up, the `runpod` skill detects it and walks you through this.
 
 ## Updating
 
-The plugin is **commit-tracked**: Claude Code auto-updates it in the background when the
-repo has a newer commit. If it hasn't picked up a change yet, update manually:
+The plugin is **versioned**: updates arrive when we cut a release (a version bump, see
+the CHANGELOG). Claude Code pulls the new version in the background; if it hasn't picked
+it up yet, force it manually:
 
 | Client | Update command |
 | --- | --- |

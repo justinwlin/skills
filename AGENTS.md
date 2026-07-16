@@ -54,10 +54,12 @@ skills/runpod-usage/      conceptual knowledge ("how Runpod works") — not a to
 ```
 
 **runpod-mcp and runpodctl overlap** — both drive the same Runpod REST API for the
-same infra CRUD. They are disambiguated by environment, not feature: prefer
-runpod-mcp when its tools are connected in the session; use runpodctl for
-shell-only agents and for CLI-only capabilities (Hub, `send`/`receive`, SSH,
-`doctor`, models). Keep this rule consistent across the router and both skills'
+same infra CRUD. Disambiguate by **capability first, environment second** (matching
+the router's matrix in `skills/runpod/SKILL.md`): prefer runpod-mcp for simple
+structured reads/CRUD when its tools are connected, but hand off to runpodctl the
+moment an operation needs a capability MCP lacks (Hub, `send`/`receive`, SSH,
+`doctor`, models, or pod-from-template / CPU / multi-GPU), and whenever the agent is
+shell-only. Keep this rule consistent across the router and both skills'
 descriptions when editing.
 
 ## Skill file format

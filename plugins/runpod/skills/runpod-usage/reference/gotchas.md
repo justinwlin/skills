@@ -151,14 +151,18 @@ symptom → cause → fix. See `docker.md` and `storage.md` for the full mechani
   availability GPU pool** — don't wait it out. Diagnose via the endpoint `/health`
   worker counts (there's no first-class serverless worker-log command in runpodctl/
   REST v1; the MCP server does expose `stream-pod-logs`/worker log streaming).
-- **Variant — job goes `IN_PROGRESS` then times out:** a worker *picks up* the job
-  (`IN_PROGRESS`) but never returns output, and the job fails with
-  `"job timed out after 1 retries"` after ~30–50 s. This looks like a broken worker
-  but is often a **job-reject by a healthy worker** — get the **worker logs** (MCP
-  `stream-worker-logs` or the Console) before assuming the image is bad. A real case
-  (flash endpoint, 2026-07-10): the worker's fitness checks passed, then it logged
-  `read() got an unexpected keyword argument …` / `Job has missing field(s): id or
-  input` — a handler-signature + empty-input bug, **not** a broken worker (see
+
+## Serverless job goes `IN_PROGRESS` then times out
+
+- **Symptom:** a worker *picks up* the job (`IN_PROGRESS`) but never returns output;
+  the job fails with `"job timed out after 1 retries"` after ~30–50 s.
+- **Cause:** this looks like a broken worker but is often a **job-reject by a healthy
+  worker** — usually a handler-signature or empty-`input` bug in *your* request, not the
+  image.
+- **Fix:** get the **worker logs** (MCP `stream-worker-logs` or the Console) before
+  assuming the image is bad. Real case (flash endpoint, 2026-07-10): fitness checks
+  passed, then it logged `read() got an unexpected keyword argument …` /
+  `Job has missing field(s): id or input` — a handler-signature + empty-input bug (see
   flash gotcha "Request body shape"). Only if the logs show a genuinely dead/looping
   worker should you switch workers or try a different data center.
 
