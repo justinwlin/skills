@@ -1,7 +1,7 @@
 {
   "name": "runpod",
   "version": "1.0.0",
-  "description": "Manage GPU workloads on Runpod — pods, serverless endpoints, jobs, templates, volumes — via the Runpod MCP server, runpodctl, and flash, with conceptual guidance and worked golden paths.",
+  "description": "Official Runpod agent skills and MCP server — run Runpod tasks (pods, serverless, templates, volumes) with runpodctl and flash, plus conceptual guidance and worked golden paths.",
   "author": {
     "name": "Runpod",
     "email": "team@runpod.io"

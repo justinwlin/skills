@@ -2,24 +2,7 @@
 
 Docker is used to build and validate container images locally before pushing to Docker Hub. Runpod uses Docker Hub as its default image registry — serverless endpoints, pods, and templates all reference images by their Docker Hub tag. Once an image is pushed, Runpod workers pull it automatically when the endpoint or pod is started.
 
-## Install
-
-**macOS:** Download Docker Desktop from https://docs.docker.com/desktop/setup/install/mac-install/
-- Choose the **Apple Silicon** installer for M-series Macs, or **Intel Chip** for older Macs
-- Open the DMG, drag Docker to Applications, and launch it
-
-**Windows:** Download Docker Desktop from https://docs.docker.com/desktop/setup/install/windows-install/
-- Requires WSL 2 — if you followed the WSL2 setup above, Docker Desktop will detect it automatically
-- After installation, `docker` commands work inside your WSL2 terminal without extra configuration
-- Run the installer and follow the setup wizard
-
-**Linux:** See https://docs.docker.com/engine/install/ for distro-specific instructions
-
-```bash
-# Linux convenience script (Ubuntu/Debian)
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER   # allow non-root usage (re-login after)
-```
+> **Not installed?** One-time install lives in [`docker-setup.md`](docker-setup.md) — skip if `docker --version` already works.
 
 ## Credentials
 

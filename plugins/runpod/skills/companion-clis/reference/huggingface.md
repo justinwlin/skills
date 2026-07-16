@@ -2,19 +2,9 @@
 
 The HuggingFace CLI (`hf`) is used to download models from the Hub to your local machine so they are cached and available when you build and run the Docker container. For example, to deploy `openai/gpt-oss-20b` to a Runpod serverless endpoint: download the model locally first, build a Docker image that includes or mounts it, validate the container locally, then push the image to Docker Hub for Runpod to pull.
 
-## Install
-
-```bash
-# macOS / Linux (standalone installer — recommended)
-curl -LsSf https://hf.co/cli/install.sh | bash
-
-# macOS (Homebrew)
-brew install hf
-
-# Windows (WSL2): use the Linux standalone installer above
-```
-
-> **Note:** `pip install huggingface_hub` installs the older Python CLI (`huggingface-cli`), which uses different command syntax. The commands below are for the standalone `hf` CLI.
+> **Not installed?** One-time install lives in [`huggingface-setup.md`](huggingface-setup.md) — skip if `hf version` already works.
+>
+> Use the standalone `hf` CLI, **not** `pip install huggingface_hub` (that's the older `huggingface-cli`, different syntax).
 
 ## Credentials
 

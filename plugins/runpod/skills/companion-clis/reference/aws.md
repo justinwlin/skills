@@ -2,16 +2,7 @@
 
 The AWS CLI is used to access Runpod storage over the S3 protocol. Any Runpod product that can mount a Network Volume — pods, clusters, and serverless endpoints — can have its storage accessed this way. The bucket name is the network volume ID.
 
-## Install
-
-```bash
-# macOS
-brew install awscli
-
-# Linux
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
-unzip awscliv2.zip && sudo ./aws/install
-```
+> **Not installed?** One-time install lives in [`aws-setup.md`](aws-setup.md) — skip if `aws --version` already works.
 
 ## Credentials
 

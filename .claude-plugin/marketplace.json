@@ -1,6 +1,6 @@
 {
   "name": "runpod",
-  "description": "Runpod agent skills — manage GPU pods and serverless endpoints via the Runpod MCP server, runpodctl, and flash, with conceptual guidance and worked golden paths.",
+  "description": "Official Runpod agent skills and MCP server — run Runpod tasks (pods, serverless, templates, volumes) with runpodctl and flash, plus conceptual guidance and worked golden paths.",
   "version": "1.0.0",
   "owner": {
     "name": "Runpod",
@@ -9,8 +9,8 @@
   "plugins": [
     {
       "name": "runpod",
-      "displayName": "Runpod",
-      "description": "One entrypoint to run any Runpod task agentically — a router plus lanes for the Runpod MCP server, runpodctl, flash, companion CLIs, and conceptual usage. Bundles the hosted Runpod MCP server config.",
+      "displayName": "Runpod (Official)",
+      "description": "Official Runpod skills and MCP server: a router plus lanes (runpodctl, flash, companion CLIs, conceptual usage) that bundles the hosted Runpod MCP server.",
       "source": "./plugins/runpod",
       "category": "Infrastructure",
       "skills": [
