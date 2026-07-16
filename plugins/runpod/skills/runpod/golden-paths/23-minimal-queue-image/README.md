@@ -77,8 +77,18 @@ pass a test input and it invokes the handler once and exits (the dual-mode loop 
 [golden path 09](../09-custom-serverless-dev-loop/README.md)):
 
 ```bash
-docker run --rm <namespace>/rp-gp23-queue:v1 \
+# --platform linux/amd64 because the image is amd64 (emulated on Apple Silicon)
+docker run --rm --platform linux/amd64 <namespace>/rp-gp23-queue:v1 \
   python -u handler.py --test_input '{"input":{"name":"local"}}'
+```
+
+**Observed locally:**
+
+```text
+--- Starting Serverless Worker | Version 1.10.1 ---
+INFO   | test_input set, using test_input as job input.
+INFO   | local_test | Handler output: {'message': 'hello local', 'echo': {'name': 'local'}}
+INFO   | Local testing complete, exiting.
 ```
 
 ## Tear down
