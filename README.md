@@ -20,10 +20,13 @@ Cline, Gemini, opencode, +more):
 npx skills add runpod/skills
 ```
 
-Then authenticate — one API key covers everything:
+Then authenticate — one API key covers everything (from
+[the console](https://runpod.io/console/user/settings)):
 
 ```bash
-export RUNPOD_API_KEY=<key>      # from https://runpod.io/console/user/settings
+export RUNPOD_API_KEY=<key>      # current shell only — add to ~/.zshrc (or ~/.bashrc) to persist
+# or, to save it permanently:
+runpodctl doctor                 # prompts for the key and writes ~/.runpod/config.toml
 ```
 
 Now just ask in plain English — the skill drives the tools for you:
@@ -104,15 +107,16 @@ Auth is needed in **two places**, and **one Runpod API key covers both**:
 
 | What | What it needs | How |
 | --- | --- | --- |
-| `runpodctl` + `flash` (the CLIs) | `RUNPOD_API_KEY` env var | `export RUNPOD_API_KEY=<key>` |
+| `runpodctl` + `flash` (the CLIs) | `RUNPOD_API_KEY` (env or saved) | `export RUNPOD_API_KEY=<key>`, or `runpodctl doctor` to save it |
 | Hosted **Runpod MCP** server (infra tools) | OAuth **or** the same key | `/mcp` sign-in, **or** pass the key as a Bearer header |
 
 **Fastest path — one key, everything:**
 
 1. **Get an API key:** [Runpod console → Settings → API Keys](https://runpod.io/console/user/settings).
-2. **Export it** — the CLIs (`runpodctl`, `flash`) now work:
+2. **Make it available to the CLIs** (`runpodctl`, `flash`) — either way works:
    ```bash
-   export RUNPOD_API_KEY=<key>
+   export RUNPOD_API_KEY=<key>   # this shell only; add to ~/.zshrc / ~/.bashrc to persist
+   runpodctl doctor              # OR: prompts once and saves to ~/.runpod/config.toml (persistent)
    ```
 3. **Authenticate the MCP server** — pick one:
    - **OAuth (easiest, no key on disk):** in Claude Code, `/mcp` → **runpod** → *Sign in with Runpod*.
