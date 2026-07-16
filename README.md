@@ -11,22 +11,29 @@ plus six skills, the hosted Runpod MCP server config, and worked golden paths.
 and opencode** (with auto-update), and as skills via **skills.sh** for Cursor,
 Copilot, Windsurf, Cline, and 17+ other agents — all from the same manifest.
 
-## Quick start (Claude Code)
+## Quick start
 
-Three steps to your first command:
+**One command — works with every agent** (Claude Code, Codex, Cursor, Copilot, Windsurf,
+Cline, Gemini, opencode, +more):
 
+```bash
+npx skills add runpod/skills
 ```
-1. /plugin marketplace add runpod/skills
-2. /plugin install runpod@runpod
-3. /mcp → runpod → Sign in with Runpod        # authenticate (OAuth, no key on disk)
+
+Then authenticate — one API key covers everything:
+
+```bash
+export RUNPOD_API_KEY=<key>      # from https://runpod.io/console/user/settings
 ```
 
-Then just ask in plain English — the skill drives the tools for you:
+Now just ask in plain English — the skill drives the tools for you:
 
 > *"list my Runpod endpoints"*  ·  *"spin up an A100 pod"*  ·  *"deploy this handler to serverless"*
 
-On another agent (Codex, Cursor, Gemini, …) or prefer an API key? See
-[Install](#install) and [Authentication](#authentication) below.
+That's it. Two optional upgrades:
+- **Claude Code** can install natively instead (auto-wires the hosted **MCP server** + OAuth) —
+  see [Install → Claude Code](#claude-code).
+- Want the **MCP server**'s structured infra tools on any agent? See [Authentication](#authentication).
 
 ## Install
 
