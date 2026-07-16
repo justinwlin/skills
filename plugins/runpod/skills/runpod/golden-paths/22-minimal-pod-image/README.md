@@ -10,6 +10,19 @@ works). Pods have **no handler** — the container just runs a long-lived proces
 See [building-images.md → Don't clobber the base image's startup](../../../runpod-usage/reference/building-images.md)
 for the concept; this is the runnable proof.
 
+## Prerequisites
+
+See the shared [Before you run any path](../README.md#before-you-run-any-path-shared-prerequisites)
+block first. For this path specifically:
+
+- **Runpod auth** — `export RUNPOD_API_KEY=<key>` (from the
+  [console](https://runpod.io/console/user/settings); see
+  [getting-started](../../../runpod-usage/reference/getting-started.md)).
+- **Docker** running **and `docker login`** to a registry you can push to — substitute your
+  namespace for `<namespace>`. See [companion-clis docker](../../../companion-clis/reference/docker.md).
+- **An SSH key** to register on your account (below). No key yet?
+  `ssh-keygen -t ed25519` first (see [getting-started](../../../runpod-usage/reference/getting-started.md)).
+
 ## The image
 
 [`template/`](template/):
@@ -35,7 +48,8 @@ docker buildx build --platform linux/amd64 -t <namespace>/rp-gp22-pod:v1 --push 
 ## Make sure your SSH key is on the account (so it lands in `PUBLIC_KEY`)
 
 ```bash
-runpodctl ssh add-key --key-file ~/.ssh/id_ed25519.pub   # once
+# no key yet? generate one first:  ssh-keygen -t ed25519
+runpodctl ssh add-key --key-file ~/.ssh/id_ed25519.pub   # once (use your key's path)
 runpodctl ssh list-keys                                   # confirm it's there
 ```
 

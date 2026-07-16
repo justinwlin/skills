@@ -1,6 +1,6 @@
-# Runpod Agent Skills
+# Official Runpod Agent Skills
 
-A plugin marketplace of skills for AI agents to manage GPU workloads on Runpod —
+The **official** plugin marketplace of skills for AI agents to manage GPU workloads on Runpod —
 pods, serverless endpoints, jobs, templates, and volumes — via the Runpod MCP
 server, `runpodctl`, and `flash`.
 
@@ -10,6 +10,23 @@ plus six skills, the hosted Runpod MCP server config, and worked golden paths.
 **Compatibility:** installs as a native plugin in **Claude Code, Codex, Gemini,
 and opencode** (with auto-update), and as skills via **skills.sh** for Cursor,
 Copilot, Windsurf, Cline, and 17+ other agents — all from the same manifest.
+
+## Quick start (Claude Code)
+
+Three steps to your first command:
+
+```
+1. /plugin marketplace add runpod/skills
+2. /plugin install runpod@runpod
+3. /mcp → runpod → Sign in with Runpod        # authenticate (OAuth, no key on disk)
+```
+
+Then just ask in plain English — the skill drives the tools for you:
+
+> *"list my Runpod endpoints"*  ·  *"spin up an A100 pod"*  ·  *"deploy this handler to serverless"*
+
+On another agent (Codex, Cursor, Gemini, …) or prefer an API key? See
+[Install](#install) and [Authentication](#authentication) below.
 
 ## Install
 
@@ -76,23 +93,32 @@ local (stdio) MCP setup and all client options.
 
 ## Authentication
 
-The plugin includes a hosted **Runpod MCP server** (create/list/manage pods, endpoints,
-jobs, volumes) — it needs credentials before its tools work. Pick one:
+Auth is needed in **two places**, and **one Runpod API key covers both**:
 
-- **API key** *(recommended)* — get one from the
-  [Runpod console](https://runpod.io/console/user/settings), then `export RUNPOD_API_KEY=…`.
-  This covers **runpodctl** and **flash** directly. To use the key for the **MCP** (instead of
-  OAuth), add the hosted server with a Bearer header:
-  ```bash
-  claude mcp add --transport http runpod -s user https://mcp.getrunpod.io/ \
-    --header "Authorization: Bearer $RUNPOD_API_KEY"
-  ```
-  (Codex + local-stdio variants in [`runpod-mcp`](plugins/runpod/skills/runpod-mcp/SKILL.md).)
-- **OAuth** — or sign in interactively: in Claude Code, `/mcp` → `runpod` → *Sign in with
-  Runpod* (no key on disk). This authenticates the hosted MCP only, not the CLIs.
+| What | What it needs | How |
+| --- | --- | --- |
+| `runpodctl` + `flash` (the CLIs) | `RUNPOD_API_KEY` env var | `export RUNPOD_API_KEY=<key>` |
+| Hosted **Runpod MCP** server (infra tools) | OAuth **or** the same key | `/mcp` sign-in, **or** pass the key as a Bearer header |
 
-Companion CLIs (`hf`, `docker`, `gh`, `aws`) use their own credentials. If nothing is set
-up, the `runpod` skill detects it and walks you through this.
+**Fastest path — one key, everything:**
+
+1. **Get an API key:** [Runpod console → Settings → API Keys](https://runpod.io/console/user/settings).
+2. **Export it** — the CLIs (`runpodctl`, `flash`) now work:
+   ```bash
+   export RUNPOD_API_KEY=<key>
+   ```
+3. **Authenticate the MCP server** — pick one:
+   - **OAuth (easiest, no key on disk):** in Claude Code, `/mcp` → **runpod** → *Sign in with Runpod*.
+   - **Reuse the key you just set:**
+     ```bash
+     claude mcp add --transport http runpod -s user https://mcp.getrunpod.io/ \
+       --header "Authorization: Bearer $RUNPOD_API_KEY"
+     ```
+
+Codex and local-stdio MCP variants are in [`runpod-mcp`](plugins/runpod/skills/runpod-mcp/SKILL.md).
+Companion CLIs (`hf`, `docker`, `gh`, `aws`) use their own credentials — see
+[`companion-clis`](plugins/runpod/skills/companion-clis/SKILL.md). If nothing is set up, the
+`runpod` skill detects it and walks you through this.
 
 ## Updating
 

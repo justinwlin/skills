@@ -10,6 +10,19 @@ convention. It's the runnable companion to
 [building-images.md → Bake in vs mount at runtime](../../../runpod-usage/reference/building-images.md)
 and [golden path 21 (storage tiers)](../21-storage-tiers.md).
 
+## Prerequisites
+
+See the shared [Before you run any path](../README.md#before-you-run-any-path-shared-prerequisites)
+block first. For this path specifically:
+
+- **Runpod auth** — `export RUNPOD_API_KEY=<key>` (from the
+  [console](https://runpod.io/console/user/settings); see
+  [getting-started](../../../runpod-usage/reference/getting-started.md)).
+- **Docker** running **and `docker login`** to a registry you can push to — substitute your
+  namespace for `<namespace>`. See [companion-clis docker](../../../companion-clis/reference/docker.md).
+- **An SSH key registered** on your account (to exec into the pod) — see
+  [golden path 22](../22-minimal-pod-image/README.md#prerequisites).
+
 ## The mental model
 
 | | Baked into the image | Mounted network volume |

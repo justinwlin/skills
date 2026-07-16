@@ -11,6 +11,18 @@ with **no** handler.
 See [building-images.md](../../../runpod-usage/reference/building-images.md) for the concepts
 (base image, layering, image contract per target).
 
+## Prerequisites
+
+See the shared [Before you run any path](../README.md#before-you-run-any-path-shared-prerequisites)
+block first. For this path specifically:
+
+- **Runpod auth** — `export RUNPOD_API_KEY=<key>` (from the
+  [console](https://runpod.io/console/user/settings); see
+  [getting-started](../../../runpod-usage/reference/getting-started.md)). Powers `runpodctl` + the invoke below.
+- **Docker** running **and `docker login`** to a registry you can push to (Docker Hub, etc.) —
+  substitute your namespace for `<namespace>` below. See
+  [companion-clis docker](../../../companion-clis/reference/docker.md).
+
 ## The image
 
 [`template/`](template/) — three files, nothing else:
@@ -52,7 +64,8 @@ runpodctl serverless create --template-id <template-id> \
 ## Invoke
 
 ```bash
-KEY=$(grep '^apikey' ~/.runpod/config.toml | sed "s/apikey = '//;s/'//")
+# Uses $RUNPOD_API_KEY (the recommended setup); falls back to runpodctl's config.toml.
+KEY="${RUNPOD_API_KEY:-$(grep '^apikey' ~/.runpod/config.toml 2>/dev/null | sed "s/apikey = '//;s/'//")}"
 curl -s -X POST "https://api.runpod.ai/v2/<endpoint-id>/runsync" \
   -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
   -d '{"input":{"name":"Justin"}}'
