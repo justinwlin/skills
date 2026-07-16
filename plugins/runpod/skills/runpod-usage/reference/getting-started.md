@@ -24,7 +24,11 @@ Nothing to install for the **hosted MCP** beyond configuring your client, and th
 
 Get it once at **https://console.runpod.io/user/settings** → API Keys. Then make
 it resolvable for the lane. Resolution order (runpodctl, flash, and runpod-python
-all use it): **`RUNPOD_API_KEY` env var → `.env` → `~/.runpod/config.toml`**.
+all use it): **`RUNPOD_API_KEY` env var → `.env` → `~/.runpod/config.toml`** (in that
+file the key is the `apikey` field, TOML `apikey = '...'`). If you need the raw key
+yourself (e.g. an `Authorization: Bearer` header for a direct API call), prefer
+`$RUNPOD_API_KEY` and fall back to that field:
+`KEY="${RUNPOD_API_KEY:-$(grep '^apikey' ~/.runpod/config.toml | sed "s/apikey = '//;s/'//")}"`.
 
 | Lane | Set the key | Notes |
 | --- | --- | --- |
