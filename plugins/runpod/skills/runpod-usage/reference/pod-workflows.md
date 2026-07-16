@@ -109,7 +109,7 @@ A pod showing "Running" does **not** mean the service answers. Poll a real healt
 check from **outside**, through the proxy URL, until it succeeds:
 
 ```bash
-until curl -sf https://<pod-id>-<port>.proxy.runpod.net/<health-path>; do sleep 5; done
+for i in $(seq 1 120); do curl -sf https://<pod-id>-<port>.proxy.runpod.net/<health-path> && break; sleep 5; done  # bounded ~10min; if it never answers, the service didn't come up — check logs
 ```
 
 Expect the **proxy itself to return 502 for the first ~30–60s** while the service

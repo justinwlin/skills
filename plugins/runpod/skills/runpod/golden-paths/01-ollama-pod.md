@@ -165,7 +165,7 @@ proves the proxy + `0.0.0.0` bind + exposed port all line up.
 **1. Readiness poll** (`GET /api/tags` → `200`):
 
 ```bash
-until curl -sf https://<pod-id>-11434.proxy.runpod.net/api/tags; do sleep 5; done
+for i in $(seq 1 120); do curl -sf https://<pod-id>-11434.proxy.runpod.net/api/tags && break; sleep 5; done  # bounded ~10min
 ```
 
 *Expect the proxy to return `502` for roughly the first 30–60s while the server

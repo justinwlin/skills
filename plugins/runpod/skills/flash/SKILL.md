@@ -48,7 +48,7 @@ stream (cold start, model load, `print`s, tracebacks) — read it to debug.
 
 ```bash
 flash dev > /tmp/flash-dev.log 2>&1 &                          # background; never run it blocking
-until grep -q "flash dev  localhost:" /tmp/flash-dev.log; do sleep 2; done   # wait for startup
+for i in $(seq 1 60); do grep -q "flash dev  localhost:" /tmp/flash-dev.log && break; sleep 2; done  # bounded ~2min; if it never appears, check the log for errors
 URL=$(grep -o "localhost:[0-9]*" /tmp/flash-dev.log | head -1)               # actual port (8888 bumps if taken)
 curl -s "$URL/main/predict" -d '{"data": {...}}'               # dispatches to the remote worker
 ```
