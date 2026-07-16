@@ -6,6 +6,15 @@
     "name": "Runpod",
     "email": "team@runpod.io"
   },
-  "keywords": ["runpod", "gpu", "serverless", "pods", "mcp", "runpodctl", "flash", "infrastructure"],
+  "keywords": [
+    "runpod",
+    "gpu",
+    "serverless",
+    "pods",
+    "mcp",
+    "runpodctl",
+    "flash",
+    "infrastructure"
+  ],
   "contextFileName": "README.md"
 }

@@ -9,5 +9,14 @@
   "homepage": "https://github.com/runpod/skills",
   "repository": "https://github.com/runpod/skills",
   "license": "Apache-2.0",
-  "keywords": ["runpod", "gpu", "serverless", "pods", "mcp", "runpodctl", "flash", "infrastructure"]
+  "keywords": [
+    "runpod",
+    "gpu",
+    "serverless",
+    "pods",
+    "mcp",
+    "runpodctl",
+    "flash",
+    "infrastructure"
+  ]
 }
