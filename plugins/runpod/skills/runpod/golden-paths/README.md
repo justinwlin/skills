@@ -10,7 +10,9 @@ a real account** (each caught real skill gaps we then folded back), commands and
 outputs are the real ones, and every test resource was torn down after. 04's training
 phase was verified as the train phase of golden path 08; 01–10 were run 2026-07-07→10,
 and 11–19 on 2026-07-13. Path 20 was live-verified 2026-07-15 (diagnosed via the Runpod MCP
-worker logs — a `COMPLETED` job off a `--model-reference` cache hit).
+worker logs — a `COMPLETED` job off a `--model-reference` cache hit). Path 21 documents
+**provisioning (launch) only** — verified against the CLI/REST specs + MCP source (2026-07-16),
+not a full live run.
 
 ## Before you run any path (shared prerequisites)
 
@@ -72,6 +74,7 @@ observed output) → Gotchas we hit → Cost & cleanup → Skill gaps folded bac
 | 18 | [Concurrent handler (per-worker concurrency)](18-concurrent-handler.md) | serverless / throughput | async `concurrency_modifier` | ✅ live-verified |
 | 19 | [3-region same-file endpoint](19-three-region-same-file.md) | serverless / availability | 3 volumes + S3 sync + GraphQL multi-volume attach | ✅ live-verified |
 | 20 | [Host-cached HF model endpoint (`--model-reference`)](20-model-caching-endpoint.md) | serverless / model delivery | runpodctl ≥v2.4.0 (`--model-reference`) + vLLM worker | ✅ live-verified |
+| 21 | [Network volume storage tiers (standard vs high-performance)](21-storage-tiers.md) | storage / provisioning | runpodctl (standard) + REST v2 / console (high-perf) | 📘 documented (launch only) |
 
 > **When a path has two variants, prefer the prebuilt/Hub one** (Variant B for
 > ComfyUI, Variant A for Whisper) unless you need custom code — that's the

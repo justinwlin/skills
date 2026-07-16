@@ -65,7 +65,7 @@ Structured tools, grouped by resource:
 - **Serverless endpoints** — list, get, create, update, delete; list workers; list releases.
 - **Jobs (serverless runtime)** — run, runsync, status, stream, cancel, retry, health, purge queue.
 - **Templates** — list, get, create, update, delete.
-- **Network volumes** — list, get, create, update, delete.
+- **Network volumes** — list, get, create, update, delete. ⚠️ `create-network-volume` takes only name/size/dataCenter — it **can't set the storage tier**, so it always gets the data center's default. For a **High-Performance** volume use the console or a raw v2 REST call (`POST https://v2-rest.runpod.io/v2/network-volumes` with `"type":"HIGH_PERFORMANCE"`); see golden path 21.
 - **Container registry auth** — list, get, create, delete.
 - **Catalog** — list/get GPU types, list/get CPU types, list/get data centers.
 - **Tags** — list, get, create, update, delete; attach/detach to resources.

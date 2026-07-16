@@ -40,6 +40,14 @@ doesn't need to outlive it. When in doubt, choose the network volume.
   multiple pods and to serverless endpoints; survives termination/scale-to-zero.
 - NVMe-backed (roughly 200–400 MB/s, higher peak). Standard and High-Performance
   tiers. Pricing ~$0.07/GB/month for the first 1 TB, ~$0.05/GB/month beyond.
+  - **Picking the tier:** `runpodctl` and the runpod-mcp `create-network-volume` tool only
+    get the data center's **default** tier (no tier flag). Request **High-Performance** via
+    the console (a ⚡ data center → toggle) or a raw v2 REST call (`POST
+    https://v2-rest.runpod.io/v2/network-volumes` with `"type":"HIGH_PERFORMANCE"`); the tier
+    is immutable after creation. High-Performance (~3× throughput / 4× IOPS) is worth it when
+    I/O is the bottleneck — training, checkpointing, many small files. Launch: golden path
+    [21 — storage tiers](../../runpod/golden-paths/21-storage-tiers.md); more:
+    [high-performance storage docs](https://docs.runpod.io/storage/high-performance-storage).
 - **Data-center-scoped** — a volume lives in one DC. See the constraint below.
 - Mount paths:
   - Pods: mounts at `/workspace`, **replacing** the volume disk. Must be attached

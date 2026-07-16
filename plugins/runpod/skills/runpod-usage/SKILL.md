@@ -30,6 +30,7 @@ Read the one reference file that matches the question:
 | **Deploy / iterate a serverless endpoint** — Hub vs flash vs custom, invoke + verify | `reference/endpoint-workflows.md` |
 | **Install software on a pod** — package hygiene, `uv`, non-interactive, caching | `reference/on-pod-setup.md` |
 | Build a Docker image Runpod can run (handler contract, Dockerfile, `--platform=linux/amd64`) | `reference/docker.md` |
+| **How to build an image well** — base image, layering, bake-in vs volume, pod vs serverless (queue/LB) contract | `reference/building-images.md` |
 | Where data lives — container disk vs network volume, model caching, S3 access | `reference/storage.md` |
 | Which GPU / how much VRAM / cost & availability / data centers | `reference/gpu-selection.md` |
 | Reaching a pod or endpoint over HTTP (proxy URLs, exposed ports) | `reference/networking.md` |
