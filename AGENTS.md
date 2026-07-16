@@ -30,12 +30,9 @@ plugins/runpod/                   THE plugin
   README.md  CHANGELOG.md
   skills/                         the six skills (below)
   golden-paths/                   worked end-to-end reference tasks (no SKILL.md)
-hooks/                            validate_marketplace / check_runpod_branding / check_links
+hooks/                            validate_marketplace / check_versions / check_runpod_branding / check_links
 .github/workflows/validate.yml    runs the hooks on PRs
 ```
-
-When you **add a skill**, list its path in the `skills` array of
-`.claude-plugin/marketplace.json` (that array is what skills.sh resolves).
 
 ## Architecture: a router + lanes
 
@@ -54,22 +51,19 @@ skills/runpod-usage/      conceptual knowledge ("how Runpod works") — not a to
 ```
 
 **runpod-mcp and runpodctl overlap** — both drive the same Runpod REST API for the
-same infra CRUD. Disambiguate by **capability first, environment second** (matching
-the router's matrix in `skills/runpod/SKILL.md`): prefer runpod-mcp for simple
-structured reads/CRUD when its tools are connected, but hand off to runpodctl the
-moment an operation needs a capability MCP lacks (Hub, `send`/`receive`, SSH,
+same infra CRUD. The authoritative precedence rule (**capability first, environment
+second**) lives in `skills/runpod/SKILL.md`'s capability matrix: prefer runpod-mcp for
+simple structured reads/CRUD when its tools are connected, but hand off to runpodctl
+the moment an operation needs a capability MCP lacks (Hub, `send`/`receive`, SSH,
 `doctor`, models, or pod-from-template / CPU / multi-GPU), and whenever the agent is
-shell-only. Keep this rule consistent across the router and both skills'
-descriptions when editing.
+shell-only. Read the matrix there rather than the summary here.
 
 ## Skill file format
 
 `SKILL.md` files use YAML frontmatter:
-- `name`, `description` — skill identity. The `description` is the routing surface
-  (always in the agent's context), so keep it 1–2 sentences and, for overlapping
-  skills, name the sibling and when to defer to it.
-- `allowed-tools` — tool permissions (e.g., `Bash(runpodctl:*)`). Omit for
-  knowledge-only skills.
+- `name`, `description` — skill identity. The `description` is the **routing surface**
+  (always in the agent's context).
+- `allowed-tools` — tool permissions (e.g., `Bash(runpodctl:*)`).
 - `user-invocable` — set for skills a user invokes directly.
 - `compatibility`, `metadata` (author, version), `license`.
 
@@ -82,16 +76,38 @@ agent opens only when needed.
 
 - `golden-paths/` holds worked end-to-end reference tasks + a gap analysis each.
   They have **no `SKILL.md`**, so skills.sh never loads them as skills — they are
-  acceptance scenarios/documentation. 01–03 are live-verified; later ones may be
-  specs awaiting a run (status noted in each file).
-- **Layout rule:** a single-approach path is one file `NN-name.md`; a path with
-  **multiple variants** is a folder `NN-name/` with a `README.md` (goal, "which
-  variant?", shared schema/gotchas/cost) + one `variant-*.md` per approach. Every
-  doc follows the same section template (Goal · Status · Lane(s) → When to use →
-  Prerequisites → Walkthrough → Verify → Gotchas → Cost & cleanup → skill gaps).
-  Keep the `golden-paths/README.md` table in sync when adding/splitting a path.
+  acceptance scenarios/documentation. Each path's live-verification status is
+  authoritative in `golden-paths/README.md`'s Status column (and restated in each
+  file) — read it there; don't summarize status here, it drifts.
+- Each golden-path doc uses one section template: Goal · Status · Lane(s) → When to
+  use → Prerequisites → Walkthrough → Verify → Gotchas → Cost & cleanup → skill gaps.
 - Each skill's `evals/*.eval.md` are regression scenarios (Prompt / Expected
-  behavior / Assertions). Add one when you add or change routing/behavior.
+  behavior / Assertions).
+
+## Contributor rules
+
+Facts and context live in the sections above; these are the binding must-dos when
+editing the repo. Each is its own checkable rule.
+
+1. **Adding a skill** — list its path in the `skills` array of
+   `.claude-plugin/marketplace.json` (that array is what skills.sh resolves).
+2. **Skill `description`** — keep it to 1–2 sentences; for a skill that overlaps
+   another, name the sibling and state when to defer to it.
+3. **`allowed-tools`** — omit this field for knowledge-only skills.
+4. **Capability matrix** — the runpod-mcp vs runpodctl precedence rule is canonical
+   in `skills/runpod/SKILL.md`. When it changes, update `skills/runpod/SKILL.md`,
+   `skills/runpod-mcp/SKILL.md`, and `skills/runpodctl/SKILL.md` in the same change;
+   don't restate the rule elsewhere.
+5. **Golden paths** —
+   - Single approach → one file `NN-name.md`. Multiple variants → a folder
+     `NN-name/` with a `README.md` (goal, "which variant?", shared schema/gotchas/cost)
+     plus one `variant-*.md` per approach.
+   - Every golden-path doc follows the section template listed under *Golden paths & evals*.
+   - When adding or splitting a path, update the `golden-paths/README.md` table in the
+     same change.
+6. **Evals** — add or update an `evals/*.eval.md` when you add or change routing/behavior.
+7. **Releases** — never hand-bump versions. Use Conventional Commits; release-please
+   cuts the release (see `CONTRIBUTING.md` → Cutting a release).
 
 ## Conventions
 

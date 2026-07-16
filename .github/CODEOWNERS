@@ -1,0 +1,8 @@
+# Code owners — GitHub auto-requests these owners as reviewers when matching paths change.
+# Rationale: the doc-freshness gate from the agent-friendly-docs audit (finding F5).
+# CI hooks catch mechanical drift (versions/links/branding); code ownership ensures a
+# human reviews the agent-facing docs when behavior changes.
+#
+# This repo is documentation/skills only, so a single owner covers it.
+
+*   @justinwlin

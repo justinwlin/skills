@@ -26,8 +26,11 @@ not an external port number. Key behaviors:
 - **HTTPS only** — the proxy terminates TLS even if your service speaks plain HTTP.
 - **100-second timeout** — the route runs through Cloudflare, which closes idle/slow
   connections at 100s with a `524`. For long work, return a job ID and poll, or use TCP.
-- **Public** — anyone with the URL can hit it; the Pod ID is obscurity, not auth.
-  Add your own authentication.
+- **Public, unauthenticated** — anyone with the URL can reach the service; the Pod ID
+  is obscurity, not access control, and the proxy adds no auth (same as any
+  port-forwarded service). **Rule:** when you hand a proxy URL to the user, say it's
+  public and unauthenticated; if the service handles anything sensitive, auth must be
+  implemented in the service itself (e.g. a login/token in front of it) — the platform won't.
 - "Running" (green) in the console does not mean the service is ready; the container
   may still be starting.
 

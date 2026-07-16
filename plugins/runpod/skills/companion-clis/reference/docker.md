@@ -39,8 +39,9 @@ Credentials are saved to `~/.docker/config.json` after a successful login.
 ## Tagging
 
 > **Always use explicit semantic version tags. Never rely on `latest`.**
-
-The `latest` tag does not automatically point to the newest image — it only reflects the last build that was pushed without an explicit tag. If you push `v1.0.0` and then push `v1.0.1` with an explicit tag, `latest` still points to `v1.0.0`. Runpod workers pinned to `latest` will silently pull the wrong version.
+> Full rationale (why `latest` is mutable/unreliable, digest pinning, and the x86
+> `--platform` rule) lives in the canonical
+> [runpod-usage Docker reference](../../runpod-usage/reference/docker.md) — don't restate it here.
 
 Use a tag that uniquely identifies the build: `v1.0.0`, `v1.0.1`, etc.
 

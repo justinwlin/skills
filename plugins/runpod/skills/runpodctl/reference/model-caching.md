@@ -69,8 +69,14 @@ and host-distributed, so it isn't locked to a single DC. Use a volume when you w
 filesystem control or are already populating one; use the Model Repository for a
 hands-off, versioned artifact.
 
-> **Doc status:** the runtime path a worker uses to reference an uploaded Model
-> Repository artifact (and whether it lands in the same HF cache dir) is not yet in the
-> public docs — confirm against the internal Model Repository doc (tracked in STO-370)
-> before publishing exact runtime-load steps. The command surface above is from live
-> `runpodctl --help` and is accurate.
+> **Runtime-load path — don't guess.** The command surface above (`runpodctl model add`)
+> is from live `runpodctl --help` and is accurate for *uploading*. But how a worker
+> *references an uploaded Model Repository artifact at runtime* is **not publicly
+> documented yet** — if asked for exact runtime-load steps for a `runpodctl model add`
+> artifact, say it isn't publicly documented and don't invent a path.
+>
+> This is distinct from the HF **model-caching** feature (the `--model-reference` flag /
+> the endpoint "Model" field), whose runtime path **is** documented: the model lands in
+> `/runpod-volume/huggingface-cache/hub/` and the handler resolves the local snapshot from
+> there (load offline with `HF_HUB_OFFLINE=1`). See golden path 20 and the official
+> example `runpod-workers/model-store-cache-example`.
