@@ -31,6 +31,76 @@ heavy dependency layers, and independent layers pull in parallel:
 
 Unchanged layers are reused from cache; only the layers after your edit rebuild/re-pull.
 
+## Dockerfile best practices
+
+- **`.dockerignore`** — exclude `.git`, virtualenvs, datasets, local caches so the build context stays small and pushes fast.
+- **Cache the dependency layer** — `COPY requirements.txt` and `pip install` *before* you `COPY` your code, so a code edit doesn't reinstall everything:
+  ```dockerfile
+  COPY requirements.txt .
+  RUN pip install --no-cache-dir -r requirements.txt
+  COPY . .
+  ```
+- **Keep it small** (smaller image = faster pull + cold start): `apt-get install --no-install-recommends …` then `rm -rf /var/lib/apt/lists/*`; `pip install --no-cache-dir`; use a **multi-stage** build when heavy build tools aren't needed at runtime.
+- **BuildKit cache mounts** for fast rebuilds: `RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt`.
+- **Never bake secrets** into layers (API keys, tokens) — layers are extractable; pass secrets as runtime env.
+- **`ENV PYTHONUNBUFFERED=1`** so logs stream, and pin an exact base image tag for reproducibility.
+
+## Don't clobber the base image's startup (SSH / web terminal) — **pods**
+
+Official `runpod/pytorch` images ship `CMD ["/start.sh"]`, and **that script is what makes a
+pod usable**: it reads `$PUBLIC_KEY` into `~/.ssh/authorized_keys`, runs `ssh-keygen -A`,
+starts `sshd`, and brings up the web terminal / Jupyter. It also runs `/pre_start.sh` before
+and `/post_start.sh` after, if those exist.
+
+If your Dockerfile sets its own `CMD`/`ENTRYPOINT` and **doesn't chain `/start.sh`**, none of
+that runs — you get **no SSH, no web terminal**, and can be locked out of the pod. (Serverless
+doesn't care — there's no SSH — but for a **pod** this is the #1 footgun.)
+
+Three safe patterns, in order of preference:
+
+1. **Don't override `CMD` at all.** Add your layers, leave `CMD ["/start.sh"]`. Do per-pod
+   work via the env-driven hooks the base already runs:
+   ```dockerfile
+   FROM runpod/pytorch:<tag>
+   COPY post_start.sh /post_start.sh   # base runs this AFTER sshd is up
+   RUN chmod +x /post_start.sh
+   # no CMD — inherit the base's /start.sh
+   ```
+2. **Override, but call the base start first**, then your workload:
+   ```dockerfile
+   COPY run.sh /run.sh
+   RUN chmod +x /run.sh
+   CMD ["/run.sh"]
+   ```
+   ```bash
+   #!/usr/bin/env bash
+   /start.sh &        # SSH + web terminal (base startup), backgrounded
+   sleep 2
+   exec python -u my_service.py   # your long-running workload in the foreground
+   ```
+3. **From a non-Runpod base, reproduce SSH yourself** (only if you can't start from
+   `runpod/pytorch`). Minimum to not get locked out of a pod:
+   ```dockerfile
+   RUN apt-get update && apt-get install -y --no-install-recommends openssh-server \
+       && rm -rf /var/lib/apt/lists/*
+   COPY start.sh /start.sh
+   RUN chmod +x /start.sh
+   CMD ["/start.sh"]
+   ```
+   ```bash
+   #!/usr/bin/env bash
+   mkdir -p ~/.ssh && chmod 700 ~/.ssh
+   [ -n "$PUBLIC_KEY" ] && echo "$PUBLIC_KEY" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+   ssh-keygen -A                       # host keys
+   service ssh start                   # or: /usr/sbin/sshd -D
+   exec "$@"                            # then your workload (or keep sshd in foreground)
+   ```
+
+Reference implementation: `justinwlin/Runpod-GPU-And-Serverless-Base` (a dual pod+serverless
+base) and the vendored `start.sh` in
+[golden path 09](../../runpod/golden-paths/09-custom-serverless-dev-loop/README.md). Worked
+end-to-end in [golden path 22 — minimal pod image](../../runpod/golden-paths/22-minimal-pod-image/README.md).
+
 ## Bake in vs mount at runtime (this drives startup speed)
 
 Only the **image** (and whatever is baked into it) lands on the host's **local disk** — fast.
@@ -54,6 +124,11 @@ which is slower — **especially for many small files**.
 | **Pod** | No | your `CMD`/entrypoint — a long-running service; bind `0.0.0.0`, expose ports |
 | **Serverless — queue-based** | **Yes** | `runpod.serverless.start({"handler": handler})` |
 | **Serverless — load-balanced** | No (different contract) | your own **HTTP server** exposing routes (no queue handler) |
+
+Minimal runnable image per contract (each built + deployed live): pod →
+[golden path 22](../../runpod/golden-paths/22-minimal-pod-image/README.md), queue →
+[golden path 23](../../runpod/golden-paths/23-minimal-queue-image/README.md), load-balanced →
+[golden path 24](../../runpod/golden-paths/24-minimal-lb-image/README.md).
 
 Queue vs load-balanced request/response shapes and when to pick each are covered in
 [endpoint-workflows.md](endpoint-workflows.md) and golden paths
