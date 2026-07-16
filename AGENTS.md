@@ -4,30 +4,114 @@ This file provides guidance to AI agents when working with code in this reposito
 
 ## Overview
 
-This is a **skills repository** for AI agents (Claude Code, Cursor, Copilot, etc.) to manage GPU workloads on Runpod. It contains no application code — only skill definition files (`SKILL.md`) that teach AI agents how to use the `runpodctl` CLI.
+This is a **plugin marketplace** for AI agents (Claude Code, Codex, Gemini,
+opencode, Cursor, Copilot, etc.) to work with Runpod. It contains no application
+code — only a plugin whose skills (`SKILL.md`) plus supporting reference docs teach
+agents how to manage GPU workloads across several backends and how Runpod works
+conceptually.
 
-Skills are installed by users via `npx skills add runpod/skills` (see [skills.sh](https://skills.sh/)).
+Two install paths read the **same** `.claude-plugin/marketplace.json`:
+- **Plugin:** `/plugin marketplace add runpod/skills` then `/plugin install runpod@runpod`
+  (native, auto-updating; in Claude Code also wires the hosted MCP via
+  `plugins/runpod/.mcp.json` — Codex/Gemini may need it added separately).
+- **skills.sh:** `npx skills add runpod/skills` (skills.sh reads the marketplace
+  manifest and installs the declared skill paths).
 
-## Repository Structure
-
-Each skill lives in its own directory with a `SKILL.md` file containing frontmatter metadata and CLI documentation:
+## Repository layout
 
 ```
-runpodctl/SKILL.md   — runpodctl CLI skill definition
+.claude-plugin/marketplace.json   Claude Code / skills.sh manifest (plugin + skills paths)
+.agents/plugins/marketplace.json  Codex manifest
+plugins/runpod/                   THE plugin
+  .claude-plugin/plugin.json      Claude Code plugin manifest
+  .codex-plugin/plugin.json       Codex plugin manifest
+  gemini-extension.json           Gemini manifest
+  .mcp.json                       hosted Runpod MCP server config
+  README.md  CHANGELOG.md
+  skills/                         the six skills (below)
+  golden-paths/                   worked end-to-end reference tasks (no SKILL.md)
+hooks/                            validate_marketplace / check_versions / check_runpod_branding / check_links
+.github/workflows/validate.yml    runs the hooks on PRs
 ```
 
-## Skill File Format
+## Architecture: a router + lanes
 
-`SKILL.md` files use YAML frontmatter with these fields:
-- `name`, `description` — skill identity
-- `allowed-tools` — tool permissions (e.g., `Bash(runpodctl:*)`)
-- `compatibility` — supported platforms
-- `metadata` — author, version
-- `license`
+The plugin's skills are organized as one **entrypoint** that routes to specialized
+**lanes**. `skills/runpod/` is the router: an agent reads it first when the right
+lane is unclear, then follows its decision table into a lane's `SKILL.md`.
 
-The body is markdown documentation that agents consume to learn the CLI commands.
+```
+skills/runpod/            router / entrypoint — decides the lane
+skills/runpod-mcp/        manage infra via the Runpod MCP server (structured tool calls)
+skills/runpodctl/         manage infra via the CLI (+ Hub, file transfer, SSH, doctor)
+skills/flash/             write & deploy your own code on Runpod serverless (@remote)
+skills/companion-clis/    prerequisite CLIs (hf, gh, docker, aws)
+skills/runpod-usage/      conceptual knowledge ("how Runpod works") — not a tool
+  reference/*.md          detailed topics, loaded on demand
+```
+
+**runpod-mcp and runpodctl overlap** — both drive the same Runpod REST API for the
+same infra CRUD. The authoritative precedence rule (**capability first, environment
+second**) lives in `skills/runpod/SKILL.md`'s capability matrix: prefer runpod-mcp for
+simple structured reads/CRUD when its tools are connected, but hand off to runpodctl
+the moment an operation needs a capability MCP lacks (Hub, `send`/`receive`, SSH,
+`doctor`, models, or pod-from-template / CPU / multi-GPU), and whenever the agent is
+shell-only. Read the matrix there rather than the summary here.
+
+## Skill file format
+
+`SKILL.md` files use YAML frontmatter:
+- `name`, `description` — skill identity. The `description` is the **routing surface**
+  (always in the agent's context).
+- `allowed-tools` — tool permissions (e.g., `Bash(runpodctl:*)`).
+- `user-invocable` — set for skills a user invokes directly.
+- `compatibility`, `metadata` (author, version), `license`.
+
+The body is markdown the agent consumes. Follow **progressive disclosure**: keep
+the `SKILL.md` body small (a decision table + the 80% patterns) and push long
+tables / deep explanations into `reference/*.md` that the body links to and the
+agent opens only when needed.
+
+## Golden paths & evals
+
+- `golden-paths/` holds worked end-to-end reference tasks + a gap analysis each.
+  They have **no `SKILL.md`**, so skills.sh never loads them as skills — they are
+  acceptance scenarios/documentation. Each path's live-verification status is
+  authoritative in `golden-paths/README.md`'s Status column (and restated in each
+  file) — read it there; don't summarize status here, it drifts.
+- Each golden-path doc uses one section template: Goal · Status · Lane(s) → When to
+  use → Prerequisites → Walkthrough → Verify → Gotchas → Cost & cleanup → skill gaps.
+- Each skill's `evals/*.eval.md` are regression scenarios (Prompt / Expected
+  behavior / Assertions).
+
+## Contributor rules
+
+Facts and context live in the sections above; these are the binding must-dos when
+editing the repo. Each is its own checkable rule.
+
+1. **Adding a skill** — list its path in the `skills` array of
+   `.claude-plugin/marketplace.json` (that array is what skills.sh resolves).
+2. **Skill `description`** — keep it to 1–2 sentences; for a skill that overlaps
+   another, name the sibling and state when to defer to it.
+3. **`allowed-tools`** — omit this field for knowledge-only skills.
+4. **Capability matrix** — the runpod-mcp vs runpodctl precedence rule is canonical
+   in `skills/runpod/SKILL.md`. When it changes, update `skills/runpod/SKILL.md`,
+   `skills/runpod-mcp/SKILL.md`, and `skills/runpodctl/SKILL.md` in the same change;
+   don't restate the rule elsewhere.
+5. **Golden paths** —
+   - Single approach → one file `NN-name.md`. Multiple variants → a folder
+     `NN-name/` with a `README.md` (goal, "which variant?", shared schema/gotchas/cost)
+     plus one `variant-*.md` per approach.
+   - Every golden-path doc follows the section template listed under *Golden paths & evals*.
+   - When adding or splitting a path, update the `golden-paths/README.md` table in the
+     same change.
+6. **Evals** — add or update an `evals/*.eval.md` when you add or change routing/behavior.
+7. **Releases** — never hand-bump versions. Use Conventional Commits; release-please
+   cuts the release (see `CONTRIBUTING.md` → Cutting a release).
 
 ## Conventions
 
 - **Spelling:** "Runpod" (capital R). The CLI command is `runpodctl` (lowercase).
-- **License:** Apache-2.0
+- **Auth:** everything unifies on `RUNPOD_API_KEY`; the MCP hosted server is the
+  exception (OAuth "Sign in with Runpod"). Companion CLIs use their own creds.
+- **License:** Apache-2.0.
