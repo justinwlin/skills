@@ -115,7 +115,7 @@ prebuilt template / Hub worker over building from scratch** → provision → se
 
 ## Worked examples (golden paths)
 
-**Twenty** end-to-end, **live-verified** scenarios live in
+**Two dozen** end-to-end scenarios (nearly all **live-verified**) live in
 [`./golden-paths/README.md`](./golden-paths/README.md) — the yardstick for "can
 an agent finish the job", with real commands + observed output to copy from. When a
 task matches one, **open its golden path first** instead of re-deriving it:
@@ -130,6 +130,8 @@ task matches one, **open its golden path first** instead of re-deriving it:
 | Interactive dev box (SSH / VS Code) | [06](./golden-paths/06-dev-pod.md) |
 | Move data pod → volume → serverless | [07](./golden-paths/07-network-volume-handoff.md) |
 | **Custom serverless when flash isn't enough** (dual-mode image dev loop) | [09](./golden-paths/09-custom-serverless-dev-loop/README.md) |
+| Build a minimal image for a target (pod vs serverless queue) | [22 (pod)](./golden-paths/22-minimal-pod-image/README.md), [23 (queue)](./golden-paths/23-minimal-queue-image/README.md); concepts in [building-images](../runpod-usage/reference/building-images.md) |
+| Decide what to bake into the image vs mount on a network volume | [25 — bake vs mount](./golden-paths/25-bake-vs-mount/README.md) |
 | **High availability / multi-region** serverless (multi-volume + data sync) | [10](./golden-paths/10-multi-region-ha-serverless.md), [19 (3-region)](./golden-paths/19-three-region-same-file.md) |
 | Stream output incrementally (`/stream`) | [12](./golden-paths/12-serverless-streaming.md) |
 | Tune autoscaling / raise per-worker throughput | [13 (autoscaling)](./golden-paths/13-autoscaling-tuning.md), [18 (concurrency)](./golden-paths/18-concurrent-handler.md) |
