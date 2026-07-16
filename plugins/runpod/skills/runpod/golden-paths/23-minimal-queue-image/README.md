@@ -45,7 +45,7 @@ runpodctl template create --name gp23-queue \
 # 2. CPU endpoint from that template (min workers 0, scales to zero when idle)
 runpodctl serverless create --template-id <template-id> \
   --compute-type CPU --instance-id cpu3g-1-4 \
-  --name gp23-queue-ep --workers-max 1 --idle-timeout 5
+  --name gp23-queue-ep --workers-min 0 --workers-max 1 --idle-timeout 5
 # → returns an endpoint id, e.g. b5nopviq75s0cn
 ```
 

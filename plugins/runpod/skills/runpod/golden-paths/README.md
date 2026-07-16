@@ -119,6 +119,10 @@ observed output) → Gotchas we hit → Cost & cleanup → Skill gaps folded bac
   written and grounded in the skills + docs, but **not yet run** end to end;
   exact flags/paths still need confirming on a real account.
 - **covered** — the skills contain everything an agent needs; verified by a run.
+- **✅ live-verified** (used in the table above) — run end to end on a real account; the
+  commands and the "observed output" blocks are from that run.
+- **📘 documented (launch only)** (used in the table above) — the provisioning/launch steps
+  are written and grounded in the CLI/REST specs, but a full end-to-end run wasn't performed.
 
 ## Cross-cutting requirements (every path)
 

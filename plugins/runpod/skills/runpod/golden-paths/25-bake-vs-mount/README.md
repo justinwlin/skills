@@ -53,7 +53,7 @@ runpodctl network-volume create --name gp25-vol --size 10 --data-center-id EU-RO
 # pod must be in the SAME data center as the volume; volume mounts at /workspace
 runpodctl pod create --compute-type cpu --image <namespace>/rp-gp25-bake:v1 \
   --name gp25-pod --ports "22/tcp" --container-disk-in-gb 10 \
-  --network-volume-id <vol-id> --data-center-ids EU-RO-1
+  --network-volume-id <vol-id> --volume-mount-path /workspace --data-center-ids EU-RO-1
 ```
 
 For a **high-performance** volume, provision it via the Console / v2 REST (per
@@ -63,10 +63,18 @@ mechanics below are identical; only the underlying tier differs.
 ## Inspect the two side by side
 
 ```bash
-runpodctl ssh info <pod-id>     # → ip + port
-ssh -i ~/.runpod/ssh/runpodctl-ssh-key root@<ip> -p <port> \
-  'ls -la /opt/baked-model; df -hT /opt/baked-model /workspace; \
-   echo hi > /workspace/mounted-model/note.txt'
+runpodctl ssh info <pod-id>     # prints ip, port, and a ready-to-paste `ssh_command`
+# Use that ssh_command verbatim (its `-i <key>` path is whichever key ssh info reports),
+# then run this on the pod — it writes to the volume AND compares filesystems:
+ssh <paste ssh_command target> '
+  echo "=== BAKED (in image) ===";        ls -la /opt/baked-model
+  echo "=== filesystem of each path ==="; df -hT /opt/baked-model /workspace | awk "{print \$1, \$2, \$7}"
+  echo "=== write to MOUNTED volume ==="; mkdir -p /workspace/mounted-model
+  echo "written to network volume at runtime" > /workspace/mounted-model/note.txt
+  head -c 20000000 /dev/zero > /workspace/mounted-model/weights.bin
+  ls -la /workspace/mounted-model; cat /workspace/mounted-model/note.txt
+  echo "=== SUMMARY ===";  echo "baked fs:   $(stat -f -c %T /opt/baked-model)";  echo "mounted fs: $(stat -f -c %T /workspace)"
+'
 ```
 
 **Observed this run** (`ht837ukjrbz14v`, EU-RO-1, CPU pod, `fgw5d0q0sd` attached):
@@ -84,7 +92,7 @@ baked fs:   overlayfs
 mounted fs: fuse
 ```
 
-The proof is the `df -T` line: the baked file sits on **`overlay`** (the image, on the host's
+The proof is the `df -hT` line: the baked file sits on **`overlay`** (the image, on the host's
 local disk), while `/workspace` is **`mfs#euro-3.runpod.net:9421`** — a FUSE **MooseFS network
 mount**. Same pod, two physically different storage backends. Files written to `/workspace`
 survive after the pod is deleted (they're on the volume); the baked file does not (it's the

@@ -54,8 +54,10 @@ runpodctl pod create --compute-type cpu \
 ## Verify SSH works (the whole point)
 
 ```bash
-runpodctl ssh info <pod-id>        # → ip, port, ready-to-paste ssh_command
-ssh -i ~/.runpod/ssh/runpodctl-ssh-key root@<ip> -p <port>
+runpodctl ssh info <pod-id>        # prints ip, port, and a ready-to-paste `ssh_command`
+# paste the `ssh_command` field verbatim — it includes the right `-i <key>` path
+# (the exact key filename varies per account; don't hardcode it), e.g.:
+#   ssh -i <key-from-ssh-info> root@<ip> -p <port>
 ```
 
 **Observed this run** (`m9e1ow8y6pwm2x`, US-CA-2, CPU pod):
