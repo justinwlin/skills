@@ -13,8 +13,9 @@ and 11–19 on 2026-07-13. Path 20 was live-verified 2026-07-15 (diagnosed via t
 worker logs — a `COMPLETED` job off a `--model-reference` cache hit). Path 21 documents
 **provisioning (launch) only** — verified against the CLI/REST specs + MCP source (2026-07-16),
 not a full live run. Paths 22–24 (the minimal image-per-target trio) were added 2026-07-16:
-**22 (pod) and 23 (queue) were run live** (built, pushed, deployed, invoked/SSH'd, torn down);
-24 (load-balanced) is the image-contract framing of the already-live-verified path 14.
+**22 (pod), 23 (queue), and 25 (bake-vs-mount) were run live** (built, pushed, deployed,
+invoked/SSH'd, torn down); 24 (load-balanced) is the image-contract framing of the
+already-live-verified path 14.
 
 ## Before you run any path (shared prerequisites)
 
@@ -80,6 +81,7 @@ observed output) → Gotchas we hit → Cost & cleanup → Skill gaps folded bac
 | 22 | [Minimal pod image (+ don't kill SSH)](22-minimal-pod-image/README.md) | image contract / pod | docker buildx + runpodctl pod (CPU) + SSH | ✅ live-verified |
 | 23 | [Minimal serverless queue image](23-minimal-queue-image/README.md) | image contract / serverless | docker buildx + runpodctl serverless (CPU) + `/runsync` | ✅ live-verified |
 | 24 | [Minimal serverless load-balanced image](24-minimal-lb-image/README.md) | image contract / serverless | HTTP-server worker (see path 14) | ✅ live-verified (via 14) |
+| 25 | [Bake into image vs mount a network volume](25-bake-vs-mount/README.md) | storage model / image | docker buildx + runpodctl nv + CPU pod (`df -T`: overlay vs MooseFS) | ✅ live-verified |
 
 > **When a path has two variants, prefer the prebuilt/Hub one** (Variant B for
 > ComfyUI, Variant A for Whisper) unless you need custom code — that's the

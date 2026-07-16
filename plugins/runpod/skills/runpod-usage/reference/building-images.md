@@ -108,6 +108,9 @@ When a **network volume** is attached it takes over the working directory (`/wor
 pod, `/runpod-volume` on serverless); anything written there lives on **networked storage**,
 which is slower — **especially for many small files**.
 
+Live proof that this is a real filesystem boundary (baked = `overlay`/local, volume =
+`fuse`/MooseFS network mount): [golden path 25 — bake vs mount](../../runpod/golden-paths/25-bake-vs-mount/README.md).
+
 - **Bake into the image:** packages, libraries, and lots of small static files → local, fast.
 - **Mount a volume:** large/few files (model weights, datasets), anything that must persist
   across pods, or data you stream/live-load.
