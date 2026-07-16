@@ -13,17 +13,14 @@ Copilot, Windsurf, Cline, and 17+ other agents — all from the same manifest.
 
 ## Quick start
 
-**One command — works with every agent** (Claude Code, Codex, Cursor, Copilot, Windsurf,
-Cline, Gemini, opencode, +more):
+**Install** — works with every agent (Claude Code, Codex, Cursor, Copilot, Windsurf, Cline,
+Gemini, opencode, +more). The first line is all you need; drop any others you won't use:
 
 ```bash
-npx skills add runpod/skills
-```
-
-Install the Runpod CLI the skills drive (skip if you already have it):
-
-```bash
-curl -sSL https://cli.runpod.net | bash      # or: brew install runpod/runpodctl/runpodctl
+npx skills add runpod/skills                 # the skills — any agent (essential)
+curl -sSL https://cli.runpod.net | bash      # runpodctl — infra CLI (or: brew install runpod/runpodctl/runpodctl)
+uv tool install runpod-flash                 # flash — deploy your own code (optional; or: pip install runpod-flash)
+npx @runpod/mcp-server@latest add            # hosted MCP server — guided setup, OAuth (optional)
 ```
 
 Then authenticate — one API key covers everything (from
@@ -39,12 +36,11 @@ Now just ask in plain English — the skill drives the tools for you:
 
 > *"list my Runpod endpoints"*  ·  *"spin up an A100 pod"*  ·  *"deploy this handler to serverless"*
 
-That's it. Optional upgrades:
+That's it. Notes:
 - **Claude Code** can install natively instead (auto-wires the hosted **MCP server** + OAuth) —
-  see [Install → Claude Code](#claude-code).
-- Want the **MCP server**'s structured infra tools on any agent? See [Authentication](#authentication).
-- Deploying your **own code**, or want every Runpod tool at once? See the one-shot install in
-  [getting-started → Get the tools](plugins/runpod/skills/runpod-usage/reference/getting-started.md#get-the-tools).
+  see [Install → Claude Code](#claude-code). MCP auth details: [Authentication](#authentication).
+- Companion CLIs (`docker`/`gh`/`hf`/`aws`) install separately, per task — see
+  [`companion-clis`](plugins/runpod/skills/companion-clis/SKILL.md).
 
 ## Install
 
