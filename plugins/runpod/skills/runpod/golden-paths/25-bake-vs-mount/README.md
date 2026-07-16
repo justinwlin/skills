@@ -77,9 +77,9 @@ mechanics below are identical; only the underlying tier differs.
 
 ```bash
 runpodctl ssh info <pod-id>     # prints ip, port, and a ready-to-paste `ssh_command`
-# Use that ssh_command verbatim (its `-i <key>` path is whichever key ssh info reports),
-# then run this on the pod — it writes to the volume AND compares filesystems:
-ssh <paste ssh_command target> '
+# Run this on the pod (fill -i/host/port from the ssh_command that ssh info printed) —
+# it writes to the volume AND compares filesystems:
+ssh -i <key-from-ssh-info> root@<ip> -p <port> '
   echo "=== BAKED (in image) ===";        ls -la /opt/baked-model
   echo "=== filesystem of each path ==="; df -hT /opt/baked-model /workspace | awk "{print \$1, \$2, \$7}"
   echo "=== write to MOUNTED volume ==="; mkdir -p /workspace/mounted-model
@@ -90,7 +90,8 @@ ssh <paste ssh_command target> '
 '
 ```
 
-**Observed this run** (`ht837ukjrbz14v`, EU-RO-1, CPU pod, `fgw5d0q0sd` attached):
+**Observed this run** (`ht837ukjrbz14v`, EU-RO-1, CPU pod, `fgw5d0q0sd` attached — trimmed for
+readability; real output also lists `SOURCE.txt` and a `df` header row):
 
 ```text
 === BAKED (in image) ===        /opt/baked-model/weights.bin  20000000 bytes  (came from the image)
