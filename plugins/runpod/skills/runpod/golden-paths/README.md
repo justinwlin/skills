@@ -12,10 +12,9 @@ phase was verified as the train phase of golden path 08; 01–10 were run 2026-0
 and 11–19 on 2026-07-13. Path 20 was live-verified 2026-07-15 (diagnosed via the Runpod MCP
 worker logs — a `COMPLETED` job off a `--model-reference` cache hit). Path 21 documents
 **provisioning (launch) only** — verified against the CLI/REST specs + MCP source (2026-07-16),
-not a full live run. Paths 22–24 (the minimal image-per-target trio) were added 2026-07-16:
-**22 (pod), 23 (queue), and 25 (bake-vs-mount) were run live** (built, pushed, deployed,
-invoked/SSH'd, torn down); 24 (load-balanced) is the image-contract framing of the
-already-live-verified path 14.
+not a full live run. Paths 22, 23, and 25 (minimal-image + storage-model paths) were added
+2026-07-16 and **run live** (built, pushed, deployed, invoked/SSH'd, torn down). The
+load-balanced image contract is covered by the already-live-verified [path 14](14-load-balancing-endpoint.md).
 
 ## Before you run any path (shared prerequisites)
 
@@ -80,7 +79,6 @@ observed output) → Gotchas we hit → Cost & cleanup → Skill gaps folded bac
 | 21 | [Network volume storage tiers (standard vs high-performance)](21-storage-tiers.md) | storage / provisioning | runpodctl (standard) + REST v2 / console (high-perf) | 📘 documented (launch only) |
 | 22 | [Minimal pod image (+ don't kill SSH)](22-minimal-pod-image/README.md) | image contract / pod | docker buildx + runpodctl pod (CPU) + SSH | ✅ live-verified |
 | 23 | [Minimal serverless queue image](23-minimal-queue-image/README.md) | image contract / serverless | docker buildx + runpodctl serverless (CPU) + `/runsync` | ✅ live-verified |
-| 24 | [Minimal serverless load-balanced image](24-minimal-lb-image/README.md) | image contract / serverless | HTTP-server worker (see path 14) | ✅ live-verified (via 14) |
 | 25 | [Bake into image vs mount a network volume](25-bake-vs-mount/README.md) | storage model / image | docker buildx + runpodctl nv + CPU pod (`df -T`: overlay vs MooseFS) | ✅ live-verified |
 
 > **When a path has two variants, prefer the prebuilt/Hub one** (Variant B for
@@ -90,9 +88,9 @@ observed output) → Gotchas we hit → Cost & cleanup → Skill gaps folded bac
 > **Complementary pairs:** 13 (autoscaling) + 18 (concurrency) — concurrency raises
 > per-worker throughput, autoscaling adds/removes workers. 14 (load-balancing) + 17
 > (WebSocket) share the `type:"LB"` substrate. 10 + 19 are the 2-region and 3-region
-> multi-volume HA cases. **22 + 23 + 24 are the minimal-image-per-target trio** — same
-> "build a tiny image" task, one per contract (pod / serverless queue / serverless
-> load-balanced) — and double as evals for
+> multi-volume HA cases. **22 (pod) + 23 (queue) are the minimal-image-per-contract pair**
+> ([14](14-load-balancing-endpoint.md) is the load-balanced counterpart) — same "build a tiny
+> image" task, one per contract — and double as evals for
 > [building-images.md](../../runpod-usage/reference/building-images.md).
 
 ## How to use these

@@ -144,7 +144,7 @@ Live proof that this is a real filesystem boundary (baked = `overlay`/local, vol
 Minimal runnable image per contract (each built + deployed live): pod →
 [golden path 22](../../runpod/golden-paths/22-minimal-pod-image/README.md), queue →
 [golden path 23](../../runpod/golden-paths/23-minimal-queue-image/README.md), load-balanced →
-[golden path 24](../../runpod/golden-paths/24-minimal-lb-image/README.md).
+[golden path 14](../../runpod/golden-paths/14-load-balancing-endpoint.md).
 
 Queue vs load-balanced request/response shapes and when to pick each are covered in
 [endpoint-workflows.md](endpoint-workflows.md) and golden paths

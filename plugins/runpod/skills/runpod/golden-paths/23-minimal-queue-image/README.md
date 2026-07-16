@@ -4,8 +4,8 @@
 
 The smallest possible **queue-based** serverless worker: a Python handler wrapped in
 `runpod.serverless.start`. This is the queue *image contract* — Runpod pulls jobs off the
-queue and hands each one to your `handler(event)`. Contrast with
-[golden path 24 (load-balanced)](../24-minimal-lb-image/README.md), which serves HTTP itself
+queue and hands each one to your `handler(event)`. Contrast with the load-balanced contract
+([golden path 14](../14-load-balancing-endpoint.md)), where your worker serves HTTP itself
 with **no** handler.
 
 See [building-images.md](../../../runpod-usage/reference/building-images.md) for the concepts
