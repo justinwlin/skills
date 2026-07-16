@@ -94,6 +94,18 @@ release-please runs on every push to `main` (`.github/workflows/release-please.y
 
 Don't add a `version` to the plugin *entry* inside `marketplace.json`'s `plugins[]` — a `plugin.json` vs entry mismatch silently masks updates. And don't remove the `# x-release-please-version` annotation from a `SKILL.md` version line, or release-please will stop bumping that skill.
 
+### Break-glass manual release (`scripts/release.sh`)
+
+The automated path needs the release-please **Action** to be permitted to write on `runpod/skills` (org setting). Until the org enables it, merging the release PR can't tag — so there's a manual path that cuts the release with **your own `gh` credentials** instead of the Action's token:
+
+```bash
+./scripts/release.sh 1.1.0 --dry-run       # preview every step, change nothing
+./scripts/release.sh 1.1.0                 # bump all files + commit + push + tag vX.Y.Z + GitHub Release
+./scripts/release.sh 1.1.0 --publish-only  # just tag current HEAD + Release (bump already merged via PR)
+```
+
+It prompts for confirmation before any push (skip with `--yes` in automation) and refuses if the tag already exists. Because it bumps `.release-please-manifest.json` too, release-please stays in sync — once the org enables the Action, go back to **merge the release PR** and don't run this. It's break-glass, not the default.
+
 ## Validate before pushing
 
 ```bash
