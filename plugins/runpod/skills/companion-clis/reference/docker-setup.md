@@ -8,7 +8,7 @@ and build/push commands are in [`docker.md`](docker.md).
 - Open the DMG, drag Docker to Applications, and launch it
 
 **Windows:** Download Docker Desktop from https://docs.docker.com/desktop/setup/install/windows-install/
-- Requires WSL 2 — if you followed the WSL2 setup, Docker Desktop will detect it automatically
+- Requires WSL 2 — install it first if needed (`wsl --install` in an admin PowerShell, then restart); Docker Desktop then detects it automatically
 - After installation, `docker` commands work inside your WSL2 terminal without extra configuration
 - Run the installer and follow the setup wizard
 

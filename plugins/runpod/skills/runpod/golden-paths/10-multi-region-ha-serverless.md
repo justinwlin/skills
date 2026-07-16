@@ -212,23 +212,30 @@ as **objects** — see the fallback below for what that looks like.
 > [GitHub releases](https://github.com/runpod/runpodctl/releases).
 
 **Fallback A — raw GraphQL `saveEndpoint`** (REST-only, or stuck on an old CLI). This is
-exactly what runpodctl does internally; `networkVolumeIds` takes **objects**, not strings:
+exactly what runpodctl does internally; `networkVolumeIds` takes **objects**, not strings.
+⚠️ **Do not put `"computeType":"CPU"` in the REST create** — the public control REST v1
+silently provisions a **GPU** endpoint (see the runpodctl skill). Express CPU in the GraphQL
+step via `instanceIds` + empty `gpuIds` (`EndpointInput` has no `computeType` field), exactly
+as [path 19](19-three-region-same-file.md) does:
 ```bash
-# create with ONE volume first (REST accepts the singular field), then attach the set:
+# create with ONE volume first (REST accepts the singular field), then attach the set + pin CPU:
 curl -s -X POST https://rest.runpod.io/v1/endpoints \
   -H "Authorization: Bearer $RUNPOD_API_KEY" -H 'Content-Type: application/json' \
-  -d '{"templateId":"<template-id>","name":"rp-gp10-ha","computeType":"CPU",
+  -d '{"templateId":"<template-id>","name":"rp-gp10-ha",
        "networkVolumeId":"<vol-ro>","dataCenterIds":["EU-RO-1","EU-CZ-1"],"workersMin":0,"workersMax":4}'
 # → endpoint id; then (NOTE the User-Agent — api.runpod.io returns 403/1010 without a browser-ish UA):
 curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
   -H 'Content-Type: application/json' -H 'User-Agent: Mozilla/5.0' \
-  -d '{"query":"mutation($input:EndpointInput!){saveEndpoint(input:$input){id name}}",
+  -d '{"query":"mutation($input:EndpointInput!){saveEndpoint(input:$input){id name computeType instanceIds}}",
        "variables":{"input":{"id":"<endpoint-id>","name":"rp-gp10-ha","templateId":"<template-id>",
+         "instanceIds":["cpu3c-2-4"],"gpuIds":"",
          "dataCenterIds":["EU-RO-1","EU-CZ-1"],
          "networkVolumeIds":[{"networkVolumeId":"<vol-ro>"},{"networkVolumeId":"<vol-cz>"}],
          "workersMin":0,"workersMax":4,"scalerType":"QUEUE_DELAY","scalerValue":1,"idleTimeout":10}}}'
 ```
-✅ Also verified live 2026-07-10 (this is the path used before the CLI was rebuilt).
+> The 2026-07-10 live run used `"computeType":"CPU"` on the REST create (before that footgun
+> was known); the CPU expression above is corrected to match path 19's live-verified shape
+> (2026-07-13). Verify: `saveEndpoint` should return `"computeType":"CPU","instanceIds":["cpu3c-2-4"]`.
 
 **Fallback B — Console:** Serverless → Edit Endpoint → Advanced → Network Volumes, one per DC, Save.
 
