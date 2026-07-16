@@ -104,7 +104,7 @@ The automated path needs the release-please **Action** to be permitted to write 
 ./scripts/release.sh 1.1.0 --publish-only  # just tag current HEAD + Release (bump already merged via PR)
 ```
 
-It prompts for confirmation before any push (skip with `--yes` in automation) and refuses if the tag already exists. Because it bumps `.release-please-manifest.json` too, release-please stays in sync — once the org enables the Action, go back to **merge the release PR** and don't run this. It's break-glass, not the default.
+Flags combine in any order. It prompts for confirmation before any push (skip with `--yes` in automation), warns if `HEAD` isn't `origin/main`, and is **idempotent** — safe to re-run after a partial failure; each step checks state first and a re-run resumes (it verifies any existing tag points at the intended commit rather than blindly re-tagging). Because it bumps `.release-please-manifest.json` too, release-please stays in sync — once the org enables the Action, go back to **merge the release PR** and don't run this. It's break-glass, not the default.
 
 ## Validate before pushing
 
