@@ -39,10 +39,12 @@ Now just ask in plain English — the skill drives the tools for you:
 
 > *"list my Runpod endpoints"*  ·  *"spin up an A100 pod"*  ·  *"deploy this handler to serverless"*
 
-That's it. Two optional upgrades:
+That's it. Optional upgrades:
 - **Claude Code** can install natively instead (auto-wires the hosted **MCP server** + OAuth) —
   see [Install → Claude Code](#claude-code).
 - Want the **MCP server**'s structured infra tools on any agent? See [Authentication](#authentication).
+- Deploying your **own code**, or want every Runpod tool at once? See the one-shot install in
+  [getting-started → Get the tools](plugins/runpod/skills/runpod-usage/reference/getting-started.md#get-the-tools).
 
 ## Install
 

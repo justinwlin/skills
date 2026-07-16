@@ -20,6 +20,18 @@ lane's `SKILL.md` (linked). You don't need all of them.
 Nothing to install for the **hosted MCP** beyond configuring your client, and the
 `runpod-usage` concepts need no install. After installing, set the key below.
 
+**Want the Runpod tools in one go?** Copy-paste (drop any line you won't use):
+
+```bash
+npx skills add runpod/skills                 # the skills — works with any agent
+curl -sSL https://cli.runpod.net | bash      # runpodctl — infra CLI (or: brew install runpod/runpodctl/runpodctl)
+uv tool install runpod-flash                 # flash — deploy your own code (or: pip install runpod-flash)
+npx @runpod/mcp-server@latest add            # hosted MCP server — guided setup, OAuth
+```
+
+Companion CLIs (`docker`, `gh`, `hf`, `aws`) are separate and OS-specific — install only the
+ones a task needs, per [`companion-clis/SKILL.md`](../../companion-clis/SKILL.md).
+
 ## The Runpod API key
 
 Get it once at **https://console.runpod.io/user/settings** → API Keys. Then make
