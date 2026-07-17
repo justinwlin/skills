@@ -23,10 +23,10 @@ Nothing to install for the **hosted MCP** beyond configuring your client, and th
 **Want the Runpod tools in one go?** Copy-paste (drop any line you won't use):
 
 ```bash
-npx skills add runpod/skills                 # the skills — works with any agent
-curl -sSL https://cli.runpod.net | bash      # runpodctl — infra CLI (or: brew install runpod/runpodctl/runpodctl)
-uv tool install runpod-flash                 # flash — deploy your own code (or: pip install runpod-flash)
-npx @runpod/mcp-server@latest add            # hosted MCP server — guided setup, OAuth
+npx skills add runpod/runpod-plugins-official # the skills — works with any agent
+curl -sSL https://cli.runpod.net | bash       # runpodctl — infra CLI (or: brew install runpod/runpodctl/runpodctl)
+uv tool install runpod-flash                  # flash — deploy your own code (or: pip install runpod-flash)
+npx @runpod/mcp-server@latest add             # hosted MCP server — guided setup, OAuth
 ```
 
 Companion CLIs (`docker`, `gh`, `hf`, `aws`) are separate and OS-specific — install only the

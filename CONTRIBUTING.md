@@ -96,7 +96,7 @@ Don't add a `version` to the plugin *entry* inside `marketplace.json`'s `plugins
 
 ### Break-glass manual release (`scripts/release.sh`)
 
-The automated path needs the release-please **Action** to be permitted to write on `runpod/skills` (org setting). Until the org enables it, merging the release PR can't tag — so there's a manual path that cuts the release with **your own `gh` credentials** instead of the Action's token:
+The automated path needs the release-please **Action** to be permitted to write on `runpod/runpod-plugins-official` (org setting). Until the org enables it, merging the release PR can't tag — so there's a manual path that cuts the release with **your own `gh` credentials** instead of the Action's token:
 
 ```bash
 ./scripts/release.sh 1.1.0 --dry-run       # preview every step, change nothing
