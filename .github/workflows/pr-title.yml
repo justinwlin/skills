@@ -1,0 +1,43 @@
+name: Lint PR title
+
+# Checks that the PR title is a valid Conventional Commit (feat:, fix:, docs:, …).
+# Because merges are squash-only with the PR title as the commit message, the title
+# becomes the commit release-please reads. A non-conventional title is silently
+# ignored by release-please (no version bump / changelog entry), so surface it here.
+#
+# NOTE: this check is intentionally NOT a required status check — it reports a
+# pass/fail on the PR so authors see it, but does not block merging.
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+
+permissions:
+  pull-requests: read
+
+jobs:
+  lint:
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Allowed Conventional Commit types (mirror release-please-config.json).
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            revert
+            chore
+            style
+            test
+            build
+            ci
