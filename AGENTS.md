@@ -51,12 +51,11 @@ skills/runpod-usage/      conceptual knowledge ("how Runpod works") — not a to
 ```
 
 **runpod-mcp and runpodctl overlap** — both drive the same Runpod REST API for the
-same infra CRUD. The authoritative precedence rule (**capability first, environment
-second**) lives in `skills/runpod/SKILL.md`'s capability matrix: prefer runpod-mcp for
-simple structured reads/CRUD when its tools are connected, but hand off to runpodctl
-the moment an operation needs a capability MCP lacks (Hub, `send`/`receive`, SSH,
-`doctor`, models, or pod-from-template / CPU / multi-GPU), and whenever the agent is
-shell-only. Read the matrix there rather than the summary here.
+same infra CRUD. Which one wins is decided by the **capability-first, environment-second**
+precedence rule, canonical in `skills/runpod/SKILL.md`'s capability matrix (roughly: runpod-mcp
+for simple structured CRUD when connected, runpodctl the moment an op needs a capability MCP
+lacks — Hub, `send`/`receive`, SSH, `doctor`, models, pod-from-template / CPU / multi-GPU — or
+whenever the agent is shell-only). Consult the matrix there; don't rely on this summary.
 
 ## Skill file format
 
@@ -67,10 +66,9 @@ shell-only. Read the matrix there rather than the summary here.
 - `user-invocable` — set for skills a user invokes directly.
 - `compatibility`, `metadata` (author, version), `license`.
 
-The body is markdown the agent consumes. Follow **progressive disclosure**: keep
-the `SKILL.md` body small (a decision table + the 80% patterns) and push long
-tables / deep explanations into `reference/*.md` that the body links to and the
-agent opens only when needed.
+The body is markdown the agent consumes, following **progressive disclosure** (see Contributor
+rule 8): the `SKILL.md` body stays small and long tables / deep explanations live in
+`reference/*.md` that the body links to and the agent opens only when needed.
 
 ## Golden paths & evals
 
@@ -78,7 +76,7 @@ agent opens only when needed.
   They have **no `SKILL.md`**, so skills.sh never loads them as skills — they are
   acceptance scenarios/documentation. Each path's live-verification status is
   authoritative in `golden-paths/README.md`'s Status column (and restated in each
-  file) — read it there; don't summarize status here, it drifts.
+  file) — read it there.
 - Each golden-path doc uses one section template: Goal · Status · Lane(s) → When to
   use → Prerequisites → Walkthrough → Verify → Gotchas → Cost & cleanup → skill gaps.
 - Each skill's `evals/*.eval.md` are regression scenarios (Prompt / Expected
@@ -91,13 +89,15 @@ editing the repo. Each is its own checkable rule.
 
 1. **Adding a skill** — list its path in the `skills` array of
    `.claude-plugin/marketplace.json` (that array is what skills.sh resolves).
-2. **Skill `description`** — keep it to 1–2 sentences; for a skill that overlaps
-   another, name the sibling and state when to defer to it.
+2. **Skill `description`** —
+   - Keep each `description` to 1–2 sentences.
+   - If a skill overlaps another, its `description` names the sibling and states when to defer to it.
 3. **`allowed-tools`** — omit this field for knowledge-only skills.
 4. **Capability matrix** — the runpod-mcp vs runpodctl precedence rule is canonical
-   in `skills/runpod/SKILL.md`. When it changes, update `skills/runpod/SKILL.md`,
-   `skills/runpod-mcp/SKILL.md`, and `skills/runpodctl/SKILL.md` in the same change;
-   don't restate the rule elsewhere.
+   in `skills/runpod/SKILL.md`.
+   - When it changes, update `skills/runpod/SKILL.md`, `skills/runpod-mcp/SKILL.md`, and
+     `skills/runpodctl/SKILL.md` in the same change.
+   - State the rule only in `skills/runpod/SKILL.md`; do not restate it elsewhere.
 5. **Golden paths** —
    - Single approach → one file `NN-name.md`. Multiple variants → a folder
      `NN-name/` with a `README.md` (goal, "which variant?", shared schema/gotchas/cost)
@@ -105,13 +105,22 @@ editing the repo. Each is its own checkable rule.
    - Every golden-path doc follows the section template listed under *Golden paths & evals*.
    - When adding or splitting a path, update the `golden-paths/README.md` table in the
      same change.
+   - The per-path verification status is authoritative in `golden-paths/README.md`'s Status
+     column; do not restate it in AGENTS.md (it drifts).
 6. **Evals** — add or update an `evals/*.eval.md` when you add or change routing/behavior.
-7. **Releases** — never hand-bump versions. Use Conventional Commits; release-please
-   cuts the release (see `CONTRIBUTING.md` → Cutting a release).
+7. **Releases** —
+   - Never hand-bump versions; release-please cuts the release (see `CONTRIBUTING.md` →
+     Cutting a release).
+   - Use Conventional Commits.
+8. **Skill body size** — put only a decision table plus the 80% patterns in a `SKILL.md` body;
+   move long tables and deep explanations into `reference/*.md` linked from the body.
 
 ## Conventions
 
-- **Spelling:** "Runpod" (capital R). The CLI command is `runpodctl` (lowercase).
-- **Auth:** everything unifies on `RUNPOD_API_KEY`; the MCP hosted server is the
-  exception (OAuth "Sign in with Runpod"). Companion CLIs use their own creds.
+Rules:
+- **Spelling:** write "Runpod" (capital R); the CLI command is `runpodctl` (lowercase).
+
+Reference facts (not rules):
+- **Auth:** everything unifies on `RUNPOD_API_KEY`; the hosted MCP is the exception
+  (OAuth "Sign in with Runpod"). Companion CLIs use their own creds.
 - **License:** Apache-2.0.

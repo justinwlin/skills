@@ -22,14 +22,15 @@ Manage GPU pods, serverless endpoints, templates, volumes, and models.
 
 `curl -sSL https://cli.runpod.net | bash` (any platform) or `brew install runpod/runpodctl/runpodctl`. Manual binaries, Windows/Linux steps, and the version caveat (`--model-reference` + multi-volume need **v2.4.0+**): **[reference/install.md](reference/install.md)**.
 
-> **Always get on the latest runpodctl first — don't use whatever's already installed.**
-> Run `runpodctl version`, then `runpodctl update` (or reinstall from the
-> [latest release](https://github.com/runpod/runpodctl/releases)) **before doing any work**.
-> Older builds silently lack newer flags/behaviors (e.g. `--model-reference` doesn't exist
-> before v2.4.0) and produce confusing downstream errors — and the Homebrew tap can lag
-> well behind. Pin to one recent version for the whole task; **do not switch between an old
-> and a new binary mid-task** (that mid-task version flip-flop is a known failure). Verify
-> once: `runpodctl version` shows the current build before you continue.
+> Old runpodctl builds silently lack newer flags/behaviors (e.g. `--model-reference` doesn't
+> exist before v2.4.0) and produce confusing downstream errors — and the Homebrew tap can lag
+> well behind. So, before any work:
+>
+> - **Update to the latest build** — check `runpodctl version`, then run `runpodctl update`
+>   (or reinstall from the [latest release](https://github.com/runpod/runpodctl/releases)).
+> - **Pin to one recent version for the whole task.**
+> - **Never switch between an old and a new binary mid-task** (that flip-flop is a known failure).
+> - **Verify once** — `runpodctl version` shows the current build before you continue.
 
 ## Quick start
 
@@ -71,9 +72,6 @@ Before using unfamiliar commands, inspect live help first. Do not rely on this s
 
 - Use Hub when the user wants a known deployable app or worker such as vLLM, ComfyUI, Whisper, or a Runpod-maintained repo.
   - **Picking a worker:** prefer a **first-party or well-adopted, recently-released** worker on a **broad, high-availability GPU pool**. Observable signals via `runpodctl hub list`: `--owner runpod-workers` (first-party), `--order-by releasedAt`/`updatedAt` (recency), `--order-by deploys`/`stars` (adoption). Don't pin a scarce large-GPU tier a small model doesn't need.
-  - **Broken-image tell:** if deployed workers go `ready` but jobs sit `IN_QUEUE` with `inProgress: 0`, that image is broken/mis-dispatching — switch workers, don't wait it out.
-  - **Diagnosing it:** there's no first-class serverless worker-log command, so diagnose via `/health` worker counts.
-- Serverless endpoints scale to zero with `--workers-min 0` (the default) — no GPU billing while idle, only per request-second; this is the right cost posture for a request/response API.
 - **"Active worker" = minimum workers, not maximum.** If a user asks for an "active worker," they mean `--workers-min 1` (keep one worker always warm → no cold start), **not** `--workers-max 1` (that only caps the ceiling). A warm min-1 worker is ideal for development/iteration.
 - ⚠️ **A min-1 worker bills continuously, even while idle** (it defeats scale-to-zero). When you set `--workers-min 1` for dev, you **must** set it back to `--workers-min 0` (or delete the endpoint) when done — otherwise it quietly runs up cost.
 - `serverless update` has **no `--gpu-id` flag**. To change an existing endpoint's GPU pool, call `PATCH https://rest.runpod.io/v1/endpoints/<id>` with `{"gpuTypeIds":[...]}` directly.
@@ -89,6 +87,12 @@ Before using unfamiliar commands, inspect live help first. Do not rely on this s
 - Clean up paid resources after tests: delete serverless endpoints, pods, and temporary volumes created for validation.
   - **Cost guard on creation:** use `--terminate-after` (deletes the pod); `--stop-after` only *stops* it, so disk/volume keep billing.
   - **Attached volume:** to delete a network volume, remove the pod using it first.
+
+### Serverless facts (context, not rules)
+
+- **Scale-to-zero billing:** serverless endpoints scale to zero with `--workers-min 0` (the default) — no GPU billing while idle, only per request-second; this is the right cost posture for a request/response API.
+- **Broken-image tell:** if deployed workers go `ready` but jobs sit `IN_QUEUE` with `inProgress: 0`, the image is broken/mis-dispatching — the fix is to switch to a different worker rather than wait it out.
+- **Diagnosing it:** there's no first-class serverless worker-log command, so diagnosis relies on `/health` worker counts.
 
 ## Commands
 

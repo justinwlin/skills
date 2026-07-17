@@ -24,20 +24,23 @@ hooks/                            validation scripts
 
 1. Edit or add `plugins/runpod/skills/<name>/SKILL.md` (YAML frontmatter needs
    `name` + `description`; keep the body small and push detail into `reference/*.md`).
-2. If you **add** a skill, list its path in the `skills` array of both
-   `.claude-plugin/marketplace.json` and (for Codex) confirm it lives under the
-   plugin's `skills/` dir.
+2. When you **add** a skill:
+   - list its path in the `skills` array of `.claude-plugin/marketplace.json`;
+   - confirm the skill directory lives under the plugin's `skills/` dir (required for Codex).
 3. Add or update an `evals/*.eval.md` when you change routing or behavior.
 4. To ship the change, cut a release (see **Cutting a release** below) — don't bump
    the manifests by hand.
 
 ## Conventions
 
-- **Spelling:** "Runpod" (capital R). The CLI command is `runpodctl` (lowercase).
-- **Skills/commands are named as verbs; agents as role-nouns.**
+Rules:
+- **Spelling:** write "Runpod" (capital R); the CLI command is `runpodctl` (lowercase).
+- **Naming:** skills/commands are named as verbs; agents as role-nouns.
+
+Reference facts (not rules):
 - **License:** Apache-2.0.
-- **Auth:** everything unifies on `RUNPOD_API_KEY`; the hosted MCP is the
-  exception (OAuth). Companion CLIs use their own creds.
+- **Auth:** everything unifies on `RUNPOD_API_KEY`; the hosted MCP is the exception (OAuth).
+  Companion CLIs use their own creds.
 
 ## Commit messages
 
@@ -92,7 +95,12 @@ release-please runs on every push to `main` (`.github/workflows/release-please.y
 
 `hooks/check_versions.py` runs in CI as a drift guard and **fails the build if any of these disagree**. `scripts/bump-version.sh` does the same bump locally but is an **emergency/local fallback only** — normal releases go through release-please.
 
-Don't add a `version` to the plugin *entry* inside `marketplace.json`'s `plugins[]` — a `plugin.json` vs entry mismatch silently masks updates. And don't remove the `# x-release-please-version` annotation from a `SKILL.md` version line, or release-please will stop bumping that skill.
+**Release invariants (do not violate):**
+
+1. Never add a `version` key to a plugin *entry* in `marketplace.json`'s `plugins[]` — a
+   `plugin.json` vs entry mismatch silently masks updates.
+2. Never remove the `# x-release-please-version` annotation from a `SKILL.md` version line —
+   release-please will stop bumping that skill.
 
 ### Break-glass manual release (`scripts/release.sh`)
 
@@ -104,9 +112,14 @@ The automated path needs the release-please **Action** to be permitted to write 
 ./scripts/release.sh 1.1.0 --publish-only  # just tag current HEAD + Release (bump already merged via PR)
 ```
 
-Flags combine in any order. It prompts for confirmation before any push (skip with `--yes` in automation), warns if `HEAD` isn't `origin/main`, and is **idempotent** — safe to re-run after a partial failure; each step checks state first and a re-run resumes (it verifies any existing tag points at the intended commit rather than blindly re-tagging). Because it bumps `.release-please-manifest.json` too, release-please stays in sync — once the org enables the Action, go back to **merge the release PR** and don't run this. It's break-glass, not the default.
+Flags combine in any order. It prompts for confirmation before any push (skip with `--yes` in automation), warns if `HEAD` isn't `origin/main`, and is **idempotent** — safe to re-run after a partial failure; each step checks state first and a re-run resumes (it verifies any existing tag points at the intended commit rather than blindly re-tagging). Because it bumps `.release-please-manifest.json` too, release-please stays in sync.
 
-## Validate before pushing
+**When to use `release.sh`:** only while the org has not yet permitted the release-please Action to write on `runpod/skills`. Once it is enabled, resume merging the standing release PR and do not run this script — it's break-glass, not the default.
+
+## Validate locally (optional — CI is authoritative)
+
+Run these locally to catch failures early; CI runs the same hooks on every PR and is the
+authoritative gate.
 
 ```bash
 python3 hooks/validate_marketplace.py     # manifests + referenced paths resolve

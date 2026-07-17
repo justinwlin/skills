@@ -42,9 +42,13 @@ can mask that bug (see Gotcha #1). Develop against `flash dev` and you catch it 
 
 ## Autonomous Dev Loop
 
-`flash dev` is a long-running server — run it in the background (don't block on it),
-capture its output, and drive it over HTTP. The captured log is the remote worker's live
-stream (cold start, model load, `print`s, tracebacks) — read it to debug.
+`flash dev` is a long-running server. Three rules:
+- **Run it in the background** — don't block on it.
+- **Capture its output** to a log file.
+- **Drive it over HTTP.**
+
+The captured log is the remote worker's live stream (cold start, model load, `print`s,
+tracebacks) — read it to debug.
 
 ```bash
 flash dev > /tmp/flash-dev.log 2>&1 &                          # background; never run it blocking
@@ -177,9 +181,18 @@ https://docs.runpod.io/flash/custom-docker-images
 7. **Client vs decorator** -- `image=`/`id=` = client. Otherwise = decorator.
 8. **Auto GPU switching requires workers >= 5** -- pass a list of GPU types (e.g. `gpu=[GpuGroup.ADA_24, GpuGroup.AMPERE_80]`) and set `workers=5` or higher. The platform only auto-switches GPU types based on supply when max workers is at least 5.
 9. **`runsync` timeout is 60s** -- cold starts can exceed 60s. Use `ep.runsync(data, timeout=120)` for first requests or use `ep.run()` + `job.wait()` instead.
-10. **Request body shape: QB spreads input as kwargs, LB is top-level** -- Load-balanced routes (`@api.post(...)`) take the handler arg at the top level: `{"data": {...}}`. Queue-based endpoints (bare `@Endpoint`, hit via `.../run` or `.../runsync`) call the handler as **`handler(**job_input)`** — the request's `input` dict is spread as keyword arguments, so the handler's parameter names must match the input keys: a handler `def transcribe(input_data: dict)` wants `{"input": {"input_data": {...}}}`, and `def read(input: dict)` wants `{"input": {"input": {...}}}` (a mismatch fails with `got an unexpected keyword argument …`, verified 2026-07-10 via worker logs). Use `**kwargs` if the handler ignores the payload. The flash client (`ep.runsync(x)`, `api.post(...)`) hides the spreading — it's a trap for raw HTTP/external callers. See *Autonomous Dev Loop*.
-    - **Never send an empty `input`.** A QB request with `{"input": {}}` is rejected by
-      the worker SDK as `Job has missing field(s): id or input` — always include at least one key.
+10. **Request body shape (raw/external HTTP callers only)** -- match the request shape to the endpoint type:
+    - **LB routes** (`@api.post(...)`): send the handler arg at the top level — `{"data": {...}}`.
+    - **QB endpoints** (bare `@Endpoint`, hit via `.../run` or `.../runsync`): the worker calls
+      **`handler(**job_input)`**, so the request's `input` keys must match the handler's parameter
+      names — `def transcribe(input_data: dict)` wants `{"input": {"input_data": {...}}}`, and
+      `def read(input: dict)` wants `{"input": {"input": {...}}}`. A mismatch fails with
+      `got an unexpected keyword argument …`. Use `**kwargs` if the handler ignores the payload.
+    - **Never send an empty `input`.** A QB request with `{"input": {}}` is rejected by the
+      worker SDK as `Job has missing field(s): id or input` — always include at least one key.
+    - *Context:* the flash client (`ep.runsync(x)`, `api.post(...)`) hides the spreading, so this
+      only bites raw HTTP/external callers (mismatch behavior verified 2026-07-10 via worker logs).
+      See *Autonomous Dev Loop*.
 11. **Load a model once per worker (not per call)** -- for real inference use a class `@Endpoint` whose `__init__` loads the model once per worker (see [reference/patterns.md → Loading ML models](reference/patterns.md#loading-ml-models-warm-workers)). In function-form, reconcile with #1 by caching in a module global *inside* the body so it works under both `flash dev` and `deploy`:
     ```python
     global _MODEL
