@@ -50,12 +50,13 @@ yourself (e.g. an `Authorization: Bearer` header for a direct API call), prefer
 | **runpod-mcp (hosted)** | "Sign in with Runpod" OAuth on first connect | No key on disk. Or pass `Authorization: Bearer $RUNPOD_API_KEY`. |
 | **runpod-mcp (local)** | `RUNPOD_API_KEY` env in the MCP client config | Forwarded to the API. |
 
-Agent rule: **`export RUNPOD_API_KEY=...` is the universal non-interactive path**
-(runpodctl and flash both honor it) — the closest thing to one-step setup. The
-**hosted MCP is the exception**: it uses its own `/mcp` "Sign in with Runpod" OAuth
-(or pass the same key as an `Authorization: Bearer` header) — authing the MCP does
-not set up the CLIs, and the export does not authenticate the hosted MCP's OAuth.
-Avoid `runpodctl doctor` in automation — it prompts.
+**Rule (agents):** in automation, set the key with `export RUNPOD_API_KEY=...` (runpodctl and
+flash both honor it — the closest thing to one-step setup); never run `runpodctl doctor`, which
+prompts.
+
+Context: the **hosted MCP is the exception** — it uses its own `/mcp` "Sign in with Runpod" OAuth
+(or pass the same key as an `Authorization: Bearer` header). Authing the MCP does not set up the
+CLIs, and the export does not authenticate the hosted MCP's OAuth.
 
 ## SSH (only needed for pods you exec into)
 

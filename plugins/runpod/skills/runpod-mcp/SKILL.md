@@ -54,8 +54,9 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol
 
 The MCP server drives Runpod's **REST v2** internally (`RUNPOD_REST_VERSION=v2`), so it
 handles infra correctly where the **public `rest.runpod.io/v1`** control API is buggy —
-notably CPU serverless endpoints (see the runpodctl skill). Prefer MCP or `runpodctl`
-over hand-rolled `rest.runpod.io/v1` calls for creating endpoints.
+notably CPU serverless endpoints (see the runpodctl skill).
+
+**Prefer MCP or `runpodctl` over hand-rolled `rest.runpod.io/v1` calls for creating endpoints.**
 
 ## Tool surface
 

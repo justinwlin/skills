@@ -19,9 +19,11 @@ Invoke-WebRequest -Uri https://github.com/runpod/runpodctl/releases/latest/downl
 
 Ensure `~/.local/bin` is on your `PATH` (add `export PATH="$HOME/.local/bin:$PATH"` to `~/.bashrc` or `~/.zshrc`).
 
-> **Update to the latest build before doing any work** — `runpodctl update` (or reinstall
-> from [GitHub releases](https://github.com/runpod/runpodctl/releases)), then confirm with
-> `runpodctl version`. Older builds silently lack newer flags (e.g. `--model-reference`
-> needs **v2.4.0+**) and cause confusing downstream errors; the Homebrew tap can lag well
-> behind. Pin one recent version for the whole task — don't flip between an old and new
-> binary mid-task.
+> Older builds silently lack newer flags (e.g. `--model-reference` needs **v2.4.0+**) and
+> cause confusing downstream errors; the Homebrew tap can lag well behind. So:
+>
+> - **Before starting work, update to the latest build** — `runpodctl update` (or reinstall
+>   from [GitHub releases](https://github.com/runpod/runpodctl/releases)), then confirm with
+>   `runpodctl version`.
+> - **Pin one recent version for the whole task** — don't flip between an old and new binary
+>   mid-task.

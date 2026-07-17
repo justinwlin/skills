@@ -39,9 +39,9 @@ runpodctl user            # succeeds ⇒ a key is set and valid
 ```
 Plus, in Claude Code, `/mcp` should show `runpod` **Connected**.
 
-**Get a key — it unlocks EVERY tool; don't default to MCP OAuth.** One `RUNPOD_API_KEY`
-authenticates **runpodctl + flash + the hosted MCP** (as `--header "Authorization: Bearer
-$RUNPOD_API_KEY"`). The MCP's "Sign in with Runpod" OAuth auths the **MCP alone** — the CLIs
+**Rule: get a key first — do not default to MCP OAuth.** The reason: one `RUNPOD_API_KEY`
+unlocks every tool — it authenticates **runpodctl + flash + the hosted MCP** (as `--header
+"Authorization: Bearer $RUNPOD_API_KEY"`). The MCP's "Sign in with Runpod" OAuth auths the **MCP alone** — the CLIs
 stay blocked, so you hit a wall on any CLI-only task (Hub, `send`/`receive`, SSH, `doctor`,
 model cache/Model Repository, CPU endpoints). ⚠️ **OAuth-only is a half-setup.** If nothing's
 set up, stop and get a key, in order:
@@ -100,10 +100,14 @@ moment an op needs a flag/feature MCP doesn't expose.**
 ## Deploying a workload (the golden loop)
 
 For any "get <X> running on Runpod" task, follow the **development loop** in
-`runpod-usage/reference/development-loop.md`: decide pod vs serverless → **prefer a
-prebuilt template / Hub worker over building from scratch** → provision → set up
-(only if from-scratch) → **verify with a real request from outside** ("Running"/
-"ready" ≠ serving) → deliver → cost-guard + teardown. It branches to two sub-loops:
+`runpod-usage/reference/development-loop.md`: decide pod vs serverless → provision → set up
+(only if from-scratch) → verify → deliver → cost-guard + teardown. Two rules bind within it:
+
+- **Prefer a prebuilt template / Hub worker over building an image from scratch.**
+- **Before delivering, verify the workload with a real request from outside the pod/endpoint
+  — a "Running"/"ready" status does not mean it is serving.**
+
+It branches to two sub-loops:
 
 - **Service you open at a URL** (Ollama, ComfyUI, dev box) →
   [`runpod-usage/reference/pod-workflows.md`](../runpod-usage/reference/pod-workflows.md)
