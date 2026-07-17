@@ -181,7 +181,7 @@ https://docs.runpod.io/flash/custom-docker-images
 7. **Client vs decorator** -- `image=`/`id=` = client. Otherwise = decorator.
 8. **Auto GPU switching requires workers >= 5** -- pass a list of GPU types (e.g. `gpu=[GpuGroup.ADA_24, GpuGroup.AMPERE_80]`) and set `workers=5` or higher. The platform only auto-switches GPU types based on supply when max workers is at least 5.
 9. **`runsync` timeout is 60s** -- cold starts can exceed 60s. Use `ep.runsync(data, timeout=120)` for first requests or use `ep.run()` + `job.wait()` instead.
-10. **Request body shape (raw/external HTTP callers only)** -- three rules, by endpoint type:
+10. **Request body shape (raw/external HTTP callers only)** -- match the request shape to the endpoint type:
     - **LB routes** (`@api.post(...)`): send the handler arg at the top level — `{"data": {...}}`.
     - **QB endpoints** (bare `@Endpoint`, hit via `.../run` or `.../runsync`): the worker calls
       **`handler(**job_input)`**, so the request's `input` keys must match the handler's parameter

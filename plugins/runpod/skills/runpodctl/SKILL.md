@@ -91,8 +91,8 @@ Before using unfamiliar commands, inspect live help first. Do not rely on this s
 ### Serverless facts (context, not rules)
 
 - **Scale-to-zero billing:** serverless endpoints scale to zero with `--workers-min 0` (the default) — no GPU billing while idle, only per request-second; this is the right cost posture for a request/response API.
-- **Broken-image tell:** if deployed workers go `ready` but jobs sit `IN_QUEUE` with `inProgress: 0`, that image is broken/mis-dispatching — switch workers, don't wait it out.
-- **Diagnosing it:** there's no first-class serverless worker-log command, so diagnose via `/health` worker counts.
+- **Broken-image tell:** if deployed workers go `ready` but jobs sit `IN_QUEUE` with `inProgress: 0`, the image is broken/mis-dispatching — the fix is to switch to a different worker rather than wait it out.
+- **Diagnosing it:** there's no first-class serverless worker-log command, so diagnosis relies on `/health` worker counts.
 
 ## Commands
 
