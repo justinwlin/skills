@@ -6,7 +6,7 @@
     "name": "Runpod",
     "email": "team@runpod.io"
   },
-  "homepage": "https://github.com/runpod/skills/tree/main/plugins/runpod",
+  "homepage": "https://github.com/runpod/runpod-plugins-official/tree/main/plugins/runpod",
   "keywords": [
     "runpod",
     "gpu",

@@ -11,10 +11,10 @@ agents how to manage GPU workloads across several backends and how Runpod works
 conceptually.
 
 Two install paths read the **same** `.claude-plugin/marketplace.json`:
-- **Plugin:** `/plugin marketplace add runpod/skills` then `/plugin install runpod@runpod`
+- **Plugin:** `/plugin marketplace add runpod/runpod-plugins-official` then `/plugin install runpod@runpod`
   (native, auto-updating; in Claude Code also wires the hosted MCP via
   `plugins/runpod/.mcp.json` — Codex/Gemini may need it added separately).
-- **skills.sh:** `npx skills add runpod/skills` (skills.sh reads the marketplace
+- **skills.sh:** `npx skills add runpod/runpod-plugins-official` (skills.sh reads the marketplace
   manifest and installs the declared skill paths).
 
 ## Repository layout

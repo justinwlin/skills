@@ -6,8 +6,8 @@
     "name": "Runpod",
     "email": "team@runpod.io"
   },
-  "homepage": "https://github.com/runpod/skills",
-  "repository": "https://github.com/runpod/skills",
+  "homepage": "https://github.com/runpod/runpod-plugins-official",
+  "repository": "https://github.com/runpod/runpod-plugins-official",
   "license": "Apache-2.0",
   "keywords": [
     "runpod",

@@ -1,4 +1,4 @@
-# Official Runpod Agent Skills
+# Runpod Official Plugins
 
 The **official** plugin marketplace of skills for AI agents to manage GPU workloads on Runpod —
 pods, serverless endpoints, jobs, templates, and volumes — via the Runpod MCP
@@ -17,9 +17,9 @@ Copilot, Windsurf, Cline, and 17+ other agents — all from the same manifest.
 Gemini, opencode, +more). The first line is all you need; drop any others you won't use:
 
 ```bash
-npx skills add runpod/skills                 # the skills — any agent (essential)
-curl -sSL https://cli.runpod.net | bash      # runpodctl — infra CLI (or: brew install runpod/runpodctl/runpodctl)
-uv tool install runpod-flash                 # flash — deploy your own code (optional; or: pip install runpod-flash)
+npx skills add runpod/runpod-plugins-official # the skills — any agent (essential)
+curl -sSL https://cli.runpod.net | bash       # runpodctl — infra CLI (or: brew install runpod/runpodctl/runpodctl)
+uv tool install runpod-flash                  # flash — deploy your own code (optional; or: pip install runpod-flash)
 npx @runpod/mcp-server@latest add            # hosted MCP server — guided setup, OAuth (optional)
 ```
 
@@ -51,7 +51,7 @@ Then [authenticate](#authentication).
 ### Claude Code
 
 ```
-/plugin marketplace add runpod/skills
+/plugin marketplace add runpod/runpod-plugins-official
 /plugin install runpod@runpod
 /reload-plugins
 ```
@@ -66,7 +66,7 @@ endpoints"* — it should call the MCP `list-endpoints` tool.
 ### Codex
 
 ```bash
-codex plugin marketplace add https://github.com/runpod/skills.git
+codex plugin marketplace add https://github.com/runpod/runpod-plugins-official.git
 codex /plugins        # → open the "Runpod" marketplace tab → Runpod → Install (reload if prompted)
 ```
 
@@ -88,9 +88,9 @@ Install the skills via **skills.sh** (reads the same
 [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)):
 
 ```bash
-npx skills add runpod/skills
+npx skills add runpod/runpod-plugins-official
 # just one skill:
-npx skills add https://github.com/runpod/skills/tree/main/plugins/runpod/skills/runpodctl
+npx skills add https://github.com/runpod/runpod-plugins-official/tree/main/plugins/runpod/skills/runpodctl
 ```
 
 Gemini can also install natively via the bundled
@@ -145,7 +145,7 @@ it up yet, force it manually:
 | --- | --- |
 | **Claude Code** | `/plugin marketplace update runpod` then `/reload-plugins` |
 | **Codex** | `codex plugin marketplace upgrade runpod` |
-| **skills.sh** | re-run `npx skills add runpod/skills` |
+| **skills.sh** | re-run `npx skills add runpod/runpod-plugins-official` |
 
 ## Uninstall
 
